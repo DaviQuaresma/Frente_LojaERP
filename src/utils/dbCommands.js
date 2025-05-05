@@ -52,7 +52,7 @@ async function insertSale(
 			ven_aplicacao,
 			ven_obs
 		) VALUES (
-			NOW(),               -- $1  ven_data
+			TO_DATE(TO_CHAR(NOW(), 'DD/MM/YYYY'), 'DD/MM/YYYY'), -- $1  ven_data
 			$1,                  -- $2  ven_desconto
 			1,                   -- $3  cli_codigo
 			2,                   -- $4  par_cp_codigo
