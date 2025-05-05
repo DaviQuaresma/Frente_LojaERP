@@ -1,0 +1,51 @@
+{
+  "name": "frentelojaerp",
+  "version": "1.0.0",
+  "description": "v1",
+  "main": "./src/main/index.js",
+  "scripts": {
+    "test": "npx jest",
+    "index": "node ./tests/index.js",
+    "start": "electron ./src/main/",
+    "build": "npx electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DaviQuaresma/frenteLojaERP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DaviQuaresma/frenteLojaERP/issues"
+  },
+  "homepage": "https://github.com/DaviQuaresma/frenteLojaERP#readme",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "jest": "^29.7.0",
+    "mysql2": "^3.14.1",
+    "pg": "^8.15.6"
+  },
+  "build": {
+    "appId": "com.sua.empresa",
+    "productName": "Painel de Vendas ERP",
+    "icon": "./logo.ico",
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "services/**/*",
+      "utils/**/*",
+      "config.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "electron": "^36.1.0"
+  }
+}
