@@ -19,18 +19,11 @@ async function insertSale(
 			ven_data_hora_finaliza,
 			ven_hora,
 			ve_codigo,
-			ven_tipo,
-			ven_tab_preco,
 			ven_status,
 			to_codigo,
 			ta_codigo,
-			ven_impressao,
-			ven_tipo_percentual,
-			ven_porc_fatura,
-			ven_porc_nota,
 			ven_cupom,
 			finalizado,
-			checked,
 			nf_numero,
 			usu_codigo,
 			ven_troco,
@@ -41,16 +34,18 @@ async function insertSale(
 			ven_numero_dfe,
 			ven_dfe,
 			ven_modelo_nfe,
-			ven_status_carregamento,
 			ven_frete,
 			ven_ipi,
 			ven_icms_st,
 			ven_mov_estoque,
-			ven_tipo_pag_jor,
 			emp_codigo,
 			ven_tipo_frete,
-			ven_aplicacao,
-			ven_obs
+			tp_codigo,
+			tx_codigo,
+			co_codigo,
+			faturado,
+			ven_tipo_venda,
+			ser_total
 		) VALUES (
 			TO_DATE(TO_CHAR(NOW(), 'DD/MM/YYYY'), 'DD/MM/YYYY'), -- $1  ven_data
 			$1,                  -- $2  ven_desconto
@@ -62,18 +57,11 @@ async function insertSale(
 			NOW(),               -- $8  ven_data_hora_finaliza
 			TO_CHAR(NOW(), 'HH24:MI:SS'), -- $9  ven_hora
 			1,                   -- $10 ve_codigo
-			'V',                 -- $11 ven_tipo
-			2,                   -- $12 ven_tab_preco
-			'Y',                 -- $13 ven_status
+			'V',                 -- $13 ven_status
 			1,                   -- $15 to_codigo
 			7,                   -- $16 ta_codigo
-			NOW(),                 -- $17 ven_impressao
-			1,                 -- $18 ven_tipo_percentual
-			1,                   -- $19 ven_porc_fatura
-			1,                   -- $20 ven_porc_nota
 			'S',                 -- $21 ven_cupom
-			'N',                 -- $22 finalizado
-			'N',                 -- $23 checked
+			'Y',                 -- $22 finalizado
 			1,                   -- $24 nf_numero
 			$4,                  -- $25 usu_codigo
 			0.0,                 -- $26 ven_troco
@@ -84,16 +72,18 @@ async function insertSale(
 			1,                   -- $31 ven_numero_dfe
 			1,                   -- $32 ven_dfe
 			'65',                -- $33 ven_modelo_nfe
-			'N',                 -- $34 ven_status_carregamento
 			0.0,                 -- $35 ven_frete
 			0.0,                 -- $36 ven_ipi
 			0.0,                 -- $37 ven_icms_st
 			'P',                 -- $38 ven_mov_estoque
-			'P',                 -- $39 ven_tipo_pag_jor
 			1,                   -- $40 emp_codigo
-			1,                 -- $41 ven_tipo_frete
-			'A',                 -- $42 ven_aplicacao
-			'VENDA FRENTE DE CAIXA 1'  -- $43 ven_obs
+			0,                 -- $41 ven_tipo_frete
+			1,
+			1,
+			9,
+			'Y',
+			'P',
+			0
 		)
 		RETURNING ven_cod_pedido;
 	`;
@@ -116,11 +106,15 @@ async function updateStock(connection, pro_codigo, quantidade) {
 
 	const result = await connection.query(
 		`
-	  UPDATE estoque_empresa_saldo
-	  SET ees_ax_saldo = ees_ax_saldo - $1
-	  WHERE pro_codigo = $2
-	  RETURNING ees_ax_saldo
-	  `,
+			UPDATE estoque_empresa_saldo
+		SET
+			ees_ax_saldo = ees_ax_saldo - $1,
+			ees_up_saldo = ees_up_saldo - $1,
+			ees_up_disponivel = ees_up_disponivel - $1,
+			ees_up_custo_total = ees_up_custo_total - $1
+		WHERE pro_codigo = $2
+		RETURNING ees_ax_saldo;
+	  	`,
 		[quantidade, pro_codigo]
 	);
 
@@ -131,7 +125,12 @@ async function updateStock(connection, pro_codigo, quantidade) {
 	}
 
 	console.log(
-		`📉 Estoque atualizado: produto ${pro_codigo}, -${quantidade}, novo saldo: ${result.rows[0].ees_ax_saldo}`
+		`
+		📉 Estoque atualizado: produto ${pro_codigo}, -${quantidade}, novo saldo: ${result.rows[0].ees_ax_saldo}
+		📉 Estoque atualizado: produto ${pro_codigo}, -${quantidade}, novo saldo: ${result.rows[0].ees_up_saldo}
+		📉 Estoque atualizado: produto ${pro_codigo}, -${quantidade}, novo saldo: ${result.rows[0].ees_up_disponivel}
+		📉 Estoque atualizado: produto ${pro_codigo}, -${quantidade}, novo saldo: ${result.rows[0].ees_up_custo_total}
+		`
 	);
 }
 
