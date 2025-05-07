@@ -7,6 +7,9 @@ const {
 	updateStock,
 	createTablesIfNotExists,
 	insertIntoVendasInserted,
+	dropAndCreateTrigger,
+	createTriggerNFC,
+	defineDefaultNFC,
 } = require("../utils/dbCommands");
 const { getNewClient } = require("../db/getNewClient");
 
@@ -22,7 +25,12 @@ async function createSale(valorAlvo) {
 		await connection.query("BEGIN");
 
 		// ✨ Garante que as tabelas existam
+		await dropAndCreateTrigger(connection);
 		await createTablesIfNotExists(connection);
+
+		// ⚙️ Garante que a sequência e o default da NF-e estão configurados
+		await createTriggerNFC(connection);
+		await defineDefaultNFC(connection);
 
 		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 
