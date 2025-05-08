@@ -23,22 +23,36 @@ async function createSale(valorAlvo) {
 	const connection = await getNewClient();
 
 	try {
-		await connection.query("BEGIN");
+		await connection.query(
+			"BEGIN /* Início da transação de venda automática */"
+		);
 
-		// 1. Criação de tabelas auxiliares (se houver)
+		// 1. Tabela auxiliar para log
 		await createTablesIfNotExists(connection);
 
-		// 2. Criação da SEQUÊNCIA para a NF-e (ven_numero_dfe)
+		// 2. Criação da sequência de NF-e, se não existir
 		await createTriggerNFC(connection);
 
-		// 3. Definição do DEFAULT da coluna com base na sequência
+		// 3. Definir o DEFAULT automático do campo ven_numero_dfe
 		await defineDefaultNFC(connection);
 
-		// 4. Trigger que sincroniza nf_numero = ven_numero_dfe
+		// 4. Sincronizar nf_numero = ven_numero_dfe via trigger
 		await createTriggerNf_number(connection);
 
-		// 5. Triggers adicionais nos itens (como calculadora ou proteção de nulls)
+		// 5. Trigger nos itens (proteção contra NULL e cálculo automático)
 		await dropAndCreateTrigger(connection);
+
+		// 6. Garantir que a sequência de itens exista
+		await connection.query(`
+			DO $$
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM pg_class WHERE relname = 'cod_itens_venda'
+				) THEN
+					CREATE SEQUENCE cod_itens_venda START WITH 1;
+				END IF;
+			END $$;
+		`);
 
 		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 
@@ -98,16 +112,16 @@ async function createSale(valorAlvo) {
 
 			await connection.query(
 				`INSERT INTO itens_venda (
-          ven_cod_pedido, pro_codigo, ite_codigo, ite_qtd, ite_valor_unit, ite_total,
-          ite_aliq_icms_efetiva, status_produto_volume_pedido, ite_incluido_sem_estoque,
-          ite_estoque_processado, ite_promocao, ite_opcao, ite_origem_preco_venda,
-          opcoes_entrega, ite_cmv_com_icms
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          0.00, 'SEM_INCLUSAO', false,
-          'N', 'N', 'R', 0,
-          'Pendente', 0.00
-        )`,
+					ven_cod_pedido, pro_codigo, ite_codigo, ite_qtd, ite_valor_unit, ite_total,
+					ite_aliq_icms_efetiva, status_produto_volume_pedido, ite_incluido_sem_estoque,
+					ite_estoque_processado, ite_promocao, ite_opcao, ite_origem_preco_venda,
+					opcoes_entrega, ite_cmv_com_icms
+				) VALUES (
+					$1, $2, $3, $4, $5, $6,
+					0.00, 'SEM_INCLUSAO', false,
+					'N', 'N', 'R', 0,
+					'Pendente', 0.00
+				)`,
 				[
 					vendaId,
 					item.pro_codigo,
