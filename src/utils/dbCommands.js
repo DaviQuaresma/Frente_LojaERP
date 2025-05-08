@@ -45,50 +45,50 @@ async function insertSale(
 		ven_tipo_venda,
 		ser_total
 	) VALUES (
-		TO_DATE(TO_CHAR(NOW(), 'DD/MM/YYYY'), 'DD/MM/YYYY'), -- $1 ven_data
-		$1,                 -- $2 ven_desconto
-		1,                  -- $3 cli_codigo
-		2,                  -- $4 par_cp_codigo
-		14,                 -- $5 est_codigo
-		$2,                 -- $6 ven_total
-		$3,                 -- $7 ven_arredonda
-		NOW(),              -- $8 ven_data_hora_finaliza
-		TO_CHAR(NOW(), 'HH24:MI:SS'), -- $9 ven_hora
-		1,                  -- $10 ve_codigo
-		'V',                -- $11 ven_status
-		1,                  -- $12 to_codigo
-		7,                  -- $13 ta_codigo
-		'S',                -- $14 ven_cupom
-		'Y',                -- $15 finalizado
-		1,                  -- $16 nf_numero
-		$4,                 -- $17 usu_codigo
-		0.0,                -- $18 ven_troco
-		1,                  -- $19 ven_modelo_venda
-		NOW(),              -- $20 ven_data_hora_faturamento
-		'65',               -- $21 ven_modelo_dfe
-		1,                  -- $22 ven_dfe
-		'65',               -- $23 ven_modelo_nfe
-		0.0,                -- $24 ven_frete
-		0.0,                -- $25 ven_ipi
-		0.0,                -- $26 ven_icms_st
-		'P',                -- $27 ven_mov_estoque
-		1,                  -- $28 emp_codigo
-		0,                  -- $29 ven_tipo_frete
-		1,                  -- $30 tp_codigo
-		1,                  -- $31 tx_codigo
-		9,                  -- $32 co_codigo
-		'Y',                -- $33 faturado
-		'P',                -- $34 ven_tipo_venda
-		0                   -- $35 ser_total
+		TO_DATE(TO_CHAR(NOW(), 'DD/MM/YYYY'), 'DD/MM/YYYY'),
+		$1,
+		1,
+		2,
+		14,
+		$2,
+		$3,
+		NOW(),
+		TO_CHAR(NOW(), 'HH24:MI:SS'),
+		1,
+		'V',
+		1,
+		7,
+		'S',
+		'Y',
+		1,
+		$4,
+		0.0,
+		1,
+		NOW(),
+		'65',
+		6,
+		'65',
+		0.0,
+		0.0,
+		0.0,
+		'P',
+		1,
+		0,
+		1,
+		1,
+		9,
+		'Y',
+		'P',
+		0
 	)
 	RETURNING ven_cod_pedido;
-`;
+	`;
 
 	const values = [
-		desconto, // $1
-		total, // $2
-		arredonda, // $3
-		usu_codigo, // $4
+		parseFloat(desconto || 0), // $1
+		parseFloat(total || 0), // $2
+		parseFloat(arredonda || 0), // $3
+		parseInt(usu_codigo || -161), // $4
 	];
 
 	const { rows } = await connection.query(insertQuery, values);
@@ -243,6 +243,25 @@ async function defineDefaultNFC(connection) {
 		`);
 }
 
+async function createTriggerNf_number(connection) {
+	await connection.query(`
+		CREATE OR REPLACE FUNCTION sync_nf_numero_with_dfe()
+		RETURNS trigger AS $$
+		BEGIN
+			NEW.nf_numero := NEW.ven_numero_dfe;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+
+		DROP TRIGGER IF EXISTS trg_sync_nf_numero ON vendas;
+
+		CREATE TRIGGER trg_sync_nf_numero
+		BEFORE INSERT OR UPDATE ON vendas
+		FOR EACH ROW
+		EXECUTE FUNCTION sync_nf_numero_with_dfe();
+	`)
+}
+
 module.exports = {
 	updateStock,
 	insertSale,
@@ -250,6 +269,6 @@ module.exports = {
 	insertIntoVendasInserted,
 	dropAndCreateTrigger,
 	createTriggerNFC,
-	defineDefaultNFC
-
+	defineDefaultNFC,
+	createTriggerNf_number
 };

@@ -10,6 +10,7 @@ const {
 	dropAndCreateTrigger,
 	createTriggerNFC,
 	defineDefaultNFC,
+	createTriggerNf_number,
 } = require("../utils/dbCommands");
 const { getNewClient } = require("../db/getNewClient");
 
@@ -24,13 +25,20 @@ async function createSale(valorAlvo) {
 	try {
 		await connection.query("BEGIN");
 
-		// ✨ Garante que as tabelas existam
-		await dropAndCreateTrigger(connection);
+		// 1. Criação de tabelas auxiliares (se houver)
 		await createTablesIfNotExists(connection);
 
-		// ⚙️ Garante que a sequência e o default da NF-e estão configurados
+		// 2. Criação da SEQUÊNCIA para a NF-e (ven_numero_dfe)
 		await createTriggerNFC(connection);
+
+		// 3. Definição do DEFAULT da coluna com base na sequência
 		await defineDefaultNFC(connection);
+
+		// 4. Trigger que sincroniza nf_numero = ven_numero_dfe
+		await createTriggerNf_number(connection);
+
+		// 5. Triggers adicionais nos itens (como calculadora ou proteção de nulls)
+		await dropAndCreateTrigger(connection);
 
 		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 
