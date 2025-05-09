@@ -113,6 +113,19 @@ async function createSale(valorAlvo) {
 			);
 			const novoCodigo = rows[0].novo_codigo;
 
+			if (
+				item.ite_aliq_icms_efetiva === undefined ||
+				item.ite_aliq_icms_efetiva === null
+			) {
+				item.ite_aliq_icms_efetiva = 0.0;
+			}
+
+			const aliqEfetiva =
+				item.ite_aliq_icms_efetiva === undefined ||
+				item.ite_aliq_icms_efetiva === null
+					? 0.0
+					: item.ite_aliq_icms_efetiva;
+
 			await connection.query(
 				`INSERT INTO itens_venda (
 					ven_cod_pedido, pro_codigo, ite_codigo, ite_qtd, ite_valor_unit, ite_total,
@@ -121,7 +134,7 @@ async function createSale(valorAlvo) {
 					opcoes_entrega, ite_cmv_com_icms
 				) VALUES (
 					$1, $2, $3, $4, $5, $6,
-					0.00, 'SEM_INCLUSAO', false,
+					$7, 'SEM_INCLUSAO', false,
 					'N', 'N', 'R', 0,
 					'Pendente', 0.00
 				)`,
@@ -132,6 +145,7 @@ async function createSale(valorAlvo) {
 					item.quantidade,
 					item.preco,
 					item.preco * item.quantidade,
+					aliqEfetiva,
 				]
 			);
 

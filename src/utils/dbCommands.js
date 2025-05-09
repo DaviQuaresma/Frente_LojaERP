@@ -162,18 +162,21 @@ async function dropAndCreateTrigger(connection) {
 				END
 			);
 
+			-- Garante valor inicial como fallback antes de qualquer cálculo
+			IF NEW.ite_aliq_icms_efetiva IS NULL THEN
+				NEW.ite_aliq_icms_efetiva := 0.00;
+			END IF;
+
+			-- Só tenta calcular se os campos estiverem presentes e o resultado for válido
 			IF EXISTS (
 				SELECT 1 FROM information_schema.columns
 				WHERE table_name = 'itens_venda' AND column_name = 'ite_aliq_icms_efetiva'
 			) THEN
-				NEW.ite_aliq_icms_efetiva := (
-					COALESCE(NEW.ite_vlr_icms, 0) /
-					CASE WHEN COALESCE(NEW.ite_total_bruto, 0) = 0 THEN 1 ELSE NEW.ite_total_bruto END
-				) * 100.00;
-			END IF;
-
-			IF NEW.ITE_ALIQ_ICMS_EFETIVA IS NULL THEN
-				NEW.ITE_ALIQ_ICMS_EFETIVA := 0.00;
+				IF COALESCE(NEW.ite_total_bruto, 0) <> 0 THEN
+					NEW.ite_aliq_icms_efetiva := (
+						COALESCE(NEW.ite_vlr_icms, 0) / NEW.ite_total_bruto
+					) * 100.00;
+				END IF;
 			END IF;
 
 			NEW.ITE_CMV_COM_ICMS := 
