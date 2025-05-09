@@ -1,6 +1,12 @@
 /** @format */
 
-async function insertSale(connection, total, arredonda, desconto, usu_codigo = -161) {
+async function insertSale(
+	connection,
+	total,
+	arredonda,
+	desconto,
+	usu_codigo = -161
+) {
 	const insertQuery = `
 	INSERT INTO vendas (
 		ven_data, ven_desconto, cli_codigo, par_cp_codigo, est_codigo,
@@ -35,7 +41,8 @@ async function insertSale(connection, total, arredonda, desconto, usu_codigo = -
 }
 
 async function updateStock(connection, pro_codigo, quantidade) {
-	if (!pro_codigo || !quantidade || quantidade <= 0) throw new Error("Parâmetros inválidos para updateStock");
+	if (!pro_codigo || !quantidade || quantidade <= 0)
+		throw new Error("Parâmetros inválidos para updateStock");
 
 	const result = await connection.query(
 		`UPDATE estoque_empresa_saldo
@@ -48,7 +55,8 @@ async function updateStock(connection, pro_codigo, quantidade) {
 		[quantidade, pro_codigo]
 	);
 
-	if (result.rowCount === 0) throw new Error(`Produto ${pro_codigo} não encontrado.`);
+	if (result.rowCount === 0)
+		throw new Error(`Produto ${pro_codigo} não encontrado.`);
 }
 
 async function createTablesIfNotExists(connection) {
@@ -67,7 +75,8 @@ async function createTablesIfNotExists(connection) {
 
 async function insertIntoVendasInserted(connection, vendaCompleta) {
 	const { venda, itens } = vendaCompleta;
-	await connection.query(`
+	await connection.query(
+		`
 		INSERT INTO vendas_inserted (
 			ven_cod_pedido, total, desconto, arredonda, data, itens
 		) VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -89,24 +98,106 @@ async function dropAndCreateTrigger(connection) {
 
 		CREATE OR REPLACE FUNCTION public.p999_trg_computed_itens_venda()
 		RETURNS trigger AS $$
+		DECLARE
+			nTotalPedido NUMERIC(18,3);
+			lDeduzirICMSDeson BOOL;
+			oDevolucaoSaldoFlex BOOL;
+			oBonificacaoSaldoFlex BOOL;
 		BEGIN
-			-- Executa apenas se a coluna existir
-			IF EXISTS (
-				SELECT 1 FROM information_schema.columns
-				WHERE table_name = 'itens_venda' AND column_name = 'ite_aliq_icms_efetiva'
-			) THEN
-				NEW.ite_aliq_icms_efetiva := COALESCE(NEW.ite_aliq_icms_efetiva, 0.00);
-			END IF;
+			NEW.ITE_DESC_TOTAL := (NEW.ITE_QTD * NEW.ITE_DESC);
 
-			NEW.ite_total := (
-				COALESCE(NEW.ite_total_bruto, 0) - COALESCE(NEW.ite_desc, 0)
-				- COALESCE(NEW.ite_desc_rat, 0) + COALESCE(NEW.ite_vlr_ipi, 0)
-				+ COALESCE(NEW.ite_vlr_icms_st, 0) - COALESCE(NEW.ite_vlr_icms_deson, 0)
-				- COALESCE(NEW.ite_vicmsstdeson, 0)
-			)::NUMERIC(18,2);
+			SELECT COALESCE((SELECT OP.TO_DEDUZIR_ICMS_DESONERADO::BOOLEAN
+				FROM VENDAS V
+				LEFT JOIN TIPO_OPERACAO OP ON OP.TO_CODIGO = V.TO_CODIGO
+				WHERE V.VEN_COD_PEDIDO = NEW.VEN_COD_PEDIDO), 'Y'::BOOLEAN)
+			INTO lDeduzirICMSDeson;
 
-			NEW.ite_desc_total := COALESCE(NEW.ite_qtd, 0) * COALESCE(NEW.ite_desc, 0);
-			NEW.ite_descricao := CASE WHEN TRIM(COALESCE(NEW.ite_descricao, '')) = '' THEN NULL ELSE NEW.ite_descricao END;
+			SELECT
+				'D' = ANY (STRING_TO_ARRAY(P.CONSIDERAR_OPERACAO_SALDO_FLEX, ',')::TEXT[]),
+				'B' = ANY (STRING_TO_ARRAY(P.CONSIDERAR_OPERACAO_SALDO_FLEX, ',')::TEXT[])
+			INTO oDevolucaoSaldoFlex, oBonificacaoSaldoFlex
+			FROM PARAMETRO P
+			INNER JOIN VENDAS V ON V.VEN_COD_PEDIDO = NEW.VEN_COD_PEDIDO
+			INNER JOIN EMPRESA E ON E.EMP_CODIGO = V.EMP_CODIGO AND E.EMP_CODIGO = P.EMP_CODIGO;
+
+			nTotalPedido := (
+				COALESCE(
+					COALESCE(
+						CASE
+							WHEN NEW.VEN_MODELO_VENDA = 0 THEN
+								CASE
+									WHEN NEW.ITE_PRAZO_VISTA = 'P' THEN NEW.ITE_VALOR_UNIT_BRUTO
+									ELSE NEW.ITE_VALOR_VISTA_BRUTO
+								END * NEW.ITE_QTD
+							ELSE NEW.ITE_TOTAL_BRUTO
+						END,
+						0
+					)
+					- NEW.ITE_DESC_TOTAL
+					- COALESCE(NEW.ITE_DESC_RAT, 0)
+					- CASE WHEN lDeduzirICMSDeson THEN COALESCE(NEW.ITE_VLR_ICMS_DESON, 0) ELSE 0 END
+					+ COALESCE(NEW.ITE_ACRE_RAT, 0)
+					+ COALESCE(NEW.ITE_FRETE_RAT, 0)
+					+ COALESCE(NEW.ITE_VLR_IPI, 0)
+					+ COALESCE(NEW.ITE_VLR_ICMS_ST, 0)
+					- COALESCE(NEW.ITE_VICMSSTDESON, 0)
+					+ COALESCE(NEW.ITE_VALOR_FCP_ST, 0)
+					+ COALESCE(NEW.ITE_VLR_OUTRAS_DESPESAS, 0),
+					0
+				)
+			);
+
+			NEW.ITE_TOTAL_PEDIDO := nTotalPedido;
+			NEW.ITE_QTD_AEXPEDIR := NEW.ITE_QTD - NEW.ITE_QTD_EXPEDIDO;
+			NEW.ITE_QTD_UP_AEXPEDIR := NEW.ITE_QTD_UP - NEW.ITE_QTD_UP_EXPEDIDO;
+			NEW.ITE_CMV := NEW.ITE_VALOR_CUSTO * NEW.ITE_QTD;
+			NEW.ITE_MARGEM_BRUTA := NEW.ITE_TOTAL_PEDIDO - (NEW.ITE_VALOR_CUSTO * NEW.ITE_QTD);
+			NEW.ITE_QTD_CORTE := COALESCE(NEW.ITE_QTD_CORTE_ANTES, 0) - COALESCE(NEW.ITE_QTD_CORTE_DEPOIS, 0);
+
+			NEW.ITE_VALOR_UNIT_UP := COALESCE(
+				NEW.ITE_VALOR_UNIT_UP,
+				NEW.ITE_VALOR_UNIT / CASE
+					WHEN NEW.ITE_QTD = 0 OR NEW.ITE_QTD_UP = 0 THEN 0.001
+					ELSE NEW.ITE_QTD_UP / CASE WHEN NEW.ITE_QTD = 0 THEN 0.001 ELSE NEW.ITE_QTD END
+				END
+			);
+
+			NEW.ITE_ALIQ_ICMS_EFETIVA := (
+				NEW.ITE_VLR_ICMS / CASE WHEN NEW.ITE_TOTAL_BRUTO = 0 THEN 1 ELSE NEW.ITE_TOTAL_BRUTO END
+			) * 100.00;
+
+			NEW.ITE_CMV_COM_ICMS := 
+				COALESCE(NEW.ITE_VALOR_CUSTO, 0) * COALESCE(NEW.ITE_QTD, 0) 
+				+ COALESCE(NEW.ITE_VLR_ICMS, 0);
+			NEW.ITE_CMV_CM_UNIT := NEW.ITE_CMV_CM / (NEW.ITE_QTD_UP / NEW.ITE_QTD);
+
+			NEW.ITE_ICMS_CST := (
+				SELECT CS_NUM FROM CST C
+				INNER JOIN CLASSIFICACAO_FISCAL CF ON CF.CS_CODIGO = C.CS_CODIGO
+				WHERE CF.CL_CODIGO = NEW.CL_CODIGO
+			);
+
+			NEW.ITE_CFOP := (
+				SELECT NO_FCOP FROM NAT_OPERACAO N
+				INNER JOIN CLASSIFICACAO_FISCAL CF ON CF.NO_CODIGO = N.NO_CODIGO
+				WHERE CF.CL_CODIGO = NEW.CL_CODIGO
+			);
+
+			NEW.ITE_CUSTO_UNIT_SU_ULTIMA_COMPRA := NEW.ITE_CUSTO_UNIT_UP_ULTIMA_COMPRA * (NEW.ITE_QTD_UP / NEW.ITE_QTD);
+			NEW.ITE_CUSTO_TOTAL_ULTIMA_COMPRA := NEW.ITE_CUSTO_UNIT_UP_ULTIMA_COMPRA * NEW.ITE_QTD_UP;
+			NEW.ITE_DESCRICAO := CASE WHEN NEW.ITE_DESCRICAO = '' THEN NULL ELSE NEW.ITE_DESCRICAO END;
+
+			NEW.ITE_SALDO_FLEX := CASE
+				WHEN NEW.STATUS = 'V' OR (NEW.STATUS = 'D' AND oDevolucaoSaldoFlex) THEN
+					CASE WHEN NEW.ITE_QTD = 0 THEN 0
+					ELSE (((NEW.ITE_TOTAL_BRUTO - NEW.ITE_DESC_TOTAL - NEW.ITE_DESC_RAT)
+						- (NEW.ITE_PRECO_TABELA * (NEW.ITE_QTD_UP / NEW.ITE_QTD) * NEW.ITE_QTD))
+						* CASE WHEN NEW.STATUS = 'D' THEN -1 ELSE 1 END)
+					END
+				WHEN NEW.STATUS = 'B' AND oBonificacaoSaldoFlex THEN nTotalPedido * -1
+				ELSE 0
+			END;
+
 			RETURN NEW;
 		END;
 		$$ LANGUAGE plpgsql;
