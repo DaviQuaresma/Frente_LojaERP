@@ -162,10 +162,15 @@ async function dropAndCreateTrigger(connection) {
 				END
 			);
 
-			NEW.ITE_ALIQ_ICMS_EFETIVA := (
-				COALESCE(NEW.ITE_VLR_ICMS, 0) / 
-				CASE WHEN COALESCE(NEW.ITE_TOTAL_BRUTO, 0) = 0 THEN 1 ELSE NEW.ITE_TOTAL_BRUTO END
-			) * 100.00;
+			IF EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'itens_venda' AND column_name = 'ite_aliq_icms_efetiva'
+			) THEN
+				NEW.ite_aliq_icms_efetiva := (
+					COALESCE(NEW.ite_vlr_icms, 0) /
+					CASE WHEN COALESCE(NEW.ite_total_bruto, 0) = 0 THEN 1 ELSE NEW.ite_total_bruto END
+				) * 100.00;
+			END IF;
 
 			IF NEW.ITE_ALIQ_ICMS_EFETIVA IS NULL THEN
 				NEW.ITE_ALIQ_ICMS_EFETIVA := 0.00;
@@ -256,6 +261,29 @@ async function createTriggerNf_number(connection) {
 	`);
 }
 
+async function checkRequiredColumns(connection) {
+	const requiredColumns = ["ite_aliq_icms_efetiva", "ite_cmv_com_icms"];
+	const missingColumns = [];
+
+	for (const column of requiredColumns) {
+		const { rowCount } = await connection.query(
+			`SELECT 1 FROM information_schema.columns
+			 WHERE table_name = 'itens_venda' AND column_name = $1`,
+			[column]
+		);
+
+		if (rowCount === 0) {
+			missingColumns.push(column);
+		}
+	}
+
+	if (missingColumns.length > 0) {
+		throw new Error(
+			`❌ Campos ausentes no banco: ${missingColumns.join(", ")}`
+		);
+	}
+}
+
 module.exports = {
 	updateStock,
 	insertSale,
@@ -265,4 +293,5 @@ module.exports = {
 	createTriggerNFC,
 	defineDefaultNFC,
 	createTriggerNf_number,
+	checkRequiredColumns,
 };

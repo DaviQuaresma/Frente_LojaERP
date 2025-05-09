@@ -11,6 +11,7 @@ const {
 	createTriggerNFC,
 	defineDefaultNFC,
 	createTriggerNf_number,
+	checkRequiredColumns,
 } = require("../utils/dbCommands");
 const { getNewClient } = require("../db/getNewClient");
 
@@ -23,6 +24,8 @@ async function createSale(valorAlvo) {
 	const connection = await getNewClient();
 
 	try {
+		await checkRequiredColumns(connection);
+
 		await connection.query(
 			"BEGIN /* Início da transação de venda automática */"
 		);

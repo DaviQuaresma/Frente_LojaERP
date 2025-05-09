@@ -58,14 +58,14 @@ ipcMain.handle("salvar-config-banco", async (_event, config) => {
 	}
 });
 
-ipcMain.handle("listar-bancos-salvos", () => {
-	try {
-		return listarBancosSalvos();
-	} catch (err) {
-		console.error("Erro ao listar bancos salvos:", err);
-		return [];
-	}
-});
+// ipcMain.handle("listar-bancos-salvos", () => {
+// 	try {
+// 		return listarBancosSalvos();
+// 	} catch (err) {
+// 		console.error("Erro ao listar bancos salvos:", err);
+// 		return [];
+// 	}
+// });
 
 ipcMain.handle("ativar-banco", (_event, nome) => {
 	try {
