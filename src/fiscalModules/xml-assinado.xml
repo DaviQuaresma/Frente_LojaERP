@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe versao="4.00" Id="NFe25250524836327000166550010000043909857920788">
+    <ide>
+      <cUF>25</cUF>
+      <cNF>85792078</cNF>
+      <natOp>VENDA DE MERCADORIA</natOp>
+      <mod>65</mod>
+      <serie>1</serie>
+      <nNF>4390</nNF>
+      <dhEmi>2025-05-09T15:44:12-03:00</dhEmi>
+      <tpNF>1</tpNF>
+      <idDest>1</idDest>
+      <cMunFG>2513901</cMunFG>
+      <tpImp>4</tpImp>
+      <tpEmis>9</tpEmis>
+      <cDV>8</cDV>
+      <tpAmb>1</tpAmb>
+      <finNFe>1</finNFe>
+      <indFinal>1</indFinal>
+      <indPres>1</indPres>
+      <procEmi>0</procEmi>
+      <verProc>3.0.928.8245</verProc>
+      <dhCont>2025-05-09T15:44:12-03:00</dhCont>
+      <xJust>NFC-e emitida em modo de Contingencia...</xJust>
+    </ide>
+    <emit>
+      <CNPJ>24836327000166</CNPJ>
+      <xNome>JANIO DUTRA DA SILVA</xNome>
+      <xFant>J D VARIEDADES</xFant>
+      <enderEmit>
+        <xLgr>R FRANCISCO FELIX</xLgr>
+        <nro>121</nro>
+        <xBairro>SAO BENTINHO</xBairro>
+        <cMun>2513901</cMun>
+        <xMun>SAO BENTO</xMun>
+        <UF>PB</UF>
+        <CEP>58865000</CEP>
+        <cPais>1058</cPais>
+        <xPais>BRASIL</xPais>
+        <fone>83991180976</fone>
+      </enderEmit>
+      <IE>162740085</IE>
+      <CRT>3</CRT>
+    </emit>
+    <det nItem="1">
+      <prod>
+        <cProd>1</cProd>
+        <cEAN>SEM GTIN</cEAN>
+        <xProd>GEL MASSAGEADOR NATGEL 150 G 00001</xProd>
+        <NCM>33049910</NCM>
+        <CFOP>5102</CFOP>
+        <uCom>UN</uCom>
+        <qCom>1.0000</qCom>
+        <vUnCom>2.3300000000</vUnCom>
+        <vProd>2.33</vProd>
+        <cEANTrib>SEM GTIN</cEANTrib>
+        <uTrib>UN</uTrib>
+        <qTrib>1.0000</qTrib>
+        <vUnTrib>2.3300000000</vUnTrib>
+        <indTot>1</indTot>
+      </prod>
+      <imposto>
+        <vTotTrib>1.19</vTotTrib>
+        <ICMS>
+          <ICMS00>
+            <orig>0</orig>
+            <CST>00</CST>
+            <modBC>3</modBC>
+            <vBC>2.33</vBC>
+            <pICMS>20.0000</pICMS>
+            <vICMS>0.47</vICMS>
+          </ICMS00>
+        </ICMS>
+        <PIS>
+          <PISAliq>
+            <CST>01</CST>
+            <vBC>2.33</vBC>
+            <pPIS>1.6500</pPIS>
+            <vPIS>0.04</vPIS>
+          </PISAliq>
+        </PIS>
+        <COFINS>
+          <COFINSAliq>
+            <CST>01</CST>
+            <vBC>2.33</vBC>
+            <pCOFINS>7.6000</pCOFINS>
+            <vCOFINS>0.18</vCOFINS>
+          </COFINSAliq>
+        </COFINS>
+      </imposto>
+    </det>
+    <total>
+      <ICMSTot>
+        <vBC>2.33</vBC>
+        <vICMS>0.47</vICMS>
+        <vICMSDeson>0.00</vICMSDeson>
+        <vFCP>0.00</vFCP>
+        <vBCST>0.00</vBCST>
+        <vST>0.00</vST>
+        <vFCPST>0.00</vFCPST>
+        <vFCPSTRet>0.00</vFCPSTRet>
+        <vProd>2.33</vProd>
+        <vFrete>0.00</vFrete>
+        <vSeg>0.00</vSeg>
+        <vDesc>0.00</vDesc>
+        <vII>0.00</vII>
+        <vIPI>0.00</vIPI>
+        <vIPIDevol>0.00</vIPIDevol>
+        <vPIS>0.04</vPIS>
+        <vCOFINS>0.18</vCOFINS>
+        <vOutro>0.00</vOutro>
+        <vNF>2.33</vNF>
+        <vTotTrib>1.19</vTotTrib>
+      </ICMSTot>
+    </total>
+    <transp>
+      <modFrete>9</modFrete>
+    </transp>
+    <pag>
+      <detPag>
+        <tPag>01</tPag>
+        <vPag>2.33</vPag>
+      </detPag>
+    </pag>
+    <infAdic>
+      <infCpl>Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...</infCpl>
+    </infAdic>
+    <infRespTec>
+      <CNPJ>11918344000109</CNPJ>
+      <xContato>EDSON LUCIANO FURCIN</xContato>
+      <email>edson@domtec.com.br</email>
+      <fone>1436625005</fone>
+    </infRespTec>
+  </infNFe>
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+  <SignedInfo>
+    <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+    <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+    <Reference URI="#NFe25250524836327000166550010000043909857920788">
+      <Transforms>
+        <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+        <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+      </Transforms>
+      <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+      <DigestValue>v1WtS5jxbQb416EtqlRP2MnznU8=</DigestValue>
+    </Reference>
+  </SignedInfo>
+  <SignatureValue>D/aJBZbUtN9fVECmKOMWF5xg6Y59cBMpDZn7mXxbKiuhbn/+5uTyEEOfF7iXCKxOWokjm2x0vIrBUXkfI/iSZezCyBkd2xAtX9Dy2GLWOp6/WjgwcBvw1je0OM6HwCJVPuqxfTXyDwppHarKvqNrNh+CM67ZiLkkqW8r0TNVe7sZFv6XFJyvSh8duIYEFK1wfVMN0aP54MptW/t4GNxcBjn6AZ6D7DAZFpl2QETTzAfrXrRgmfG7sKahhc1pBtypSio2mr1mViR6Z35Y34JPQDflph6iH8V7TXQQf7/nxCBwS9Od1V22CKK5vAK19cWqyJgi0W/USWyU6Kgc/nFm1A==</SignatureValue>
+  <KeyInfo>
+    <X509Data>
+      <X509Certificate>
+MIIGoTCCBImgAwIBAgIBATANBgkqhkiG9w0BAQ0FADCBlzELMAkGA1UEBhMCQlIx
+EzARBgNVBAoMCklDUC1CcmFzaWwxPTA7BgNVBAsMNEluc3RpdHV0byBOYWNpb25h
+bCBkZSBUZWNub2xvZ2lhIGRhIEluZm9ybWFjYW8gLSBJVEkxNDAyBgNVBAMMK0F1
+dG9yaWRhZGUgQ2VydGlmaWNhZG9yYSBSYWl6IEJyYXNpbGVpcmEgdjUwHhcNMTYw
+MzAyMTMwMTM4WhcNMjkwMzAyMjM1OTM4WjCBlzELMAkGA1UEBhMCQlIxEzARBgNV
+BAoMCklDUC1CcmFzaWwxPTA7BgNVBAsMNEluc3RpdHV0byBOYWNpb25hbCBkZSBU
+ZWNub2xvZ2lhIGRhIEluZm9ybWFjYW8gLSBJVEkxNDAyBgNVBAMMK0F1dG9yaWRh
+ZGUgQ2VydGlmaWNhZG9yYSBSYWl6IEJyYXNpbGVpcmEgdjUwggIiMA0GCSqGSIb3
+DQEBAQUAA4ICDwAwggIKAoICAQD3LXgabUWsF+gUXw/6YODeF2XkqEyfk3VehdsI
+x+3/ERgdjCS/ouxYR0Epi2hdoMUVJDNf3XQfjAWXJyCoTneHYAl2McMdvoqtLB2i
+leQlJiis0fTtYTJayee9BAIdIrCor1Lc0vozXCpDtq5nTwhjIocaZtcuFsdrkl+n
+bfYxl5m7vjTkTMS6j8ffjmFzbNPDlJuV3Vy7AzapPVJrMl6UHPXCHMYMzl0KxR/4
+7S5XGgmLYkYt8bNCHA3fg07y+Gtvgu+SNhMPwWKIgwhYw+9vErOnavRhOimYo4M2
+AwNpNK0OKLI7Im5V094jFp4Ty+mlmfQH00k8nkSUEN+1TGGkhv16c2hukbx9iCfb
+mk7im2hGKjQA8eH64VPYoS2qdKbPbd3xDDHN2croYKpy2U2oQTVBSf9hC3o6fKo3
+zp0U3dNiw7ZgWKS9UwP31Q0gwgB1orZgLuF+LIppHYwxcTG/AovNWa4sTPukMiX2
+L+p7uIHExTZJJU4YoDacQh/mfbPIz3261He4YFmQ35sfw3eKHQSOLyiVfev/n0l/
+r308PijEd+d+Hz5RmqIzS8jYXZIeJxym4mEjE1fKpeP56Ea52LlIJ8ZqsJ3xzHWu
+3WkAVz4hMqrX6BPMGW2IxOuEUQyIaCBg1lI6QLiPMHvo2/J7gu4YfqRcH6i27W3H
+yzamEQIDAQABo4H1MIHyME4GA1UdIARHMEUwQwYFYEwBAQAwOjA4BggrBgEFBQcC
+ARYsaHR0cDovL2FjcmFpei5pY3BicmFzaWwuZ292LmJyL0RQQ2FjcmFpei5wZGYw
+PwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2FjcmFpei5pY3BicmFzaWwuZ292LmJy
+L0xDUmFjcmFpenY1LmNybDAfBgNVHSMEGDAWgBRpqL512cTvbOcTReRhbuVo+LZA
+XjAdBgNVHQ4EFgQUaai+ddnE72znE0XkYW7laPi2QF4wDwYDVR0TAQH/BAUwAwEB
+/zAOBgNVHQ8BAf8EBAMCAQYwDQYJKoZIhvcNAQENBQADggIBABRt2/JiWapef7o/
+plhR4PxymlMIp/JeZ5F0BZ1XafmYpl5g6pRokFrIRMFXLyEhlgo51I05InyCc9Td
+6UXjlsOASTc/LRavyjB/8NcQjlRYDh6xf7OdP05mFcT/0+6bYRtNgsnUbr10pfsK
+/UzyUvQWbumGS57hCZrAZOyd9MzukiF/azAa6JfoZk2nDkEudKOY8tRyTpMmDzN5
+fufPSC3v7tSJUqTqo5z7roN/FmckRzGAYyz5XulbOc5/UsAT/tk+KP/clbbqd/hh
+evmmdJclLr9qWZZcOgzuFU2YsgProtVu0fFNXGr6KK9fu44pOHajmMsTXK3X7r/P
+wh19kFRow5F3RQMUZC6Re0YLfXh+ypnUSCzA+uL4JPtHIGyvkbWiulkustpOKUSV
+wBPzvA2sQUOvqdbAR7C8jcHYFJMuK2HZFji7pxcWWab/NKsFcJ3sluDjmhizpQax
+bYTfAVXu3q8yd0su/BHHhBpteyHvYyyz0Eb9LUysR2cMtWvfPU6vnoPgYvOGO1Cz
+iyGEsgKULkCH4o2Vgl1gQuKWO4V68rFW8a/jvq28sbY+y/Ao0I5ohpnBcQOAawiF
+bz6yJtObajYMuztDDP8oY656EuuJXBJhuKAJPI/7WDtgfV8ffOh/iQGQATVMtgDN
+0gv8bn5NdUX8UMNX1sHhU3H1UpoW
+
+</X509Certificate>
+    </X509Data>
+  </KeyInfo>
+</Signature></NFe>
