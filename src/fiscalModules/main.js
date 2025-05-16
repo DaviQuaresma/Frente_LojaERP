@@ -5,6 +5,7 @@ const extractFromPfx = require("./extractPfx");
 const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
 const enviarXmlParaSefaz = require("./sefazSend");
+const crypto = require("crypto");
 
 (async () => {
 	const pfxBuffer = fs.readFileSync("./certs/arquivoA1.p12");
@@ -14,8 +15,34 @@ const enviarXmlParaSefaz = require("./sefazSend");
 
 	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
+	// ✅ DADOS FIXOS
+	const chave = "25250524836327000166550010000043909857920788";
+	const CSC_ID = "1";
+	const CSC_TOKEN = "AEE30B6E3824DE8F4F6533B05EB1CBBED82C4782";
+
+	// ✅ GERA QR CODE COM HASH
+	const baseUrl =
+		tpAmb === "1"
+			? "http://www.sefaz.pb.gov.br/nfce"
+			: "http://www.sefaz.pb.gov.br/nfce";
+
+	const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${CSC_ID}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
+
+	const hash = crypto
+		.createHmac("sha1", CSC_TOKEN)
+		.update(qrCodeSemHash)
+		.digest("hex")
+		.toUpperCase();
+
+	const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
+
+	// ✅ MOCK COMPLETO COM QR CODE
 	const dados = {
-		chave: "25250524836327000166550010000043909857920788",
+		chave,
+		suplementar: {
+			qrCode: qrCodeFinal,
+			urlChave: "www.sefaz.pb.gov.br/nfce/consulta",
+		},
 		ide: {
 			cUF: "25",
 			cNF: "85792078",
@@ -30,7 +57,7 @@ const enviarXmlParaSefaz = require("./sefazSend");
 			tpImp: "4",
 			tpEmis: "9",
 			cDV: "8",
-			tpAmb: tpAmb,
+			tpAmb,
 			finNFe: "1",
 			indFinal: "1",
 			indPres: "1",
@@ -61,7 +88,7 @@ const enviarXmlParaSefaz = require("./sefazSend");
 		prod: {
 			cProd: "1",
 			cEAN: "SEM GTIN",
-			xProd: "GEL MASSAGEADOR NATGEL 150 G 00001",
+			xProd: "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
 			NCM: "33049910",
 			CFOP: "5102",
 			uCom: "UN",
@@ -127,8 +154,7 @@ const enviarXmlParaSefaz = require("./sefazSend");
 			vPag: "2.33",
 		},
 		infAdic: {
-			infCpl:
-				"Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
+			infCpl: "Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
 		},
 		infRespTec: {
 			CNPJ: "11918344000109",
@@ -138,11 +164,9 @@ const enviarXmlParaSefaz = require("./sefazSend");
 		},
 	};
 
-	// Gera o XML e remove espaços extras
 	const xml = generateXml(dados).trim();
 	console.log("🔍 XML GERADO:\n", xml);
 
-	// Assina o XML limpo
 	const assinado = assinarXml(
 		xml,
 		privateKeyPem,
@@ -150,16 +174,25 @@ const enviarXmlParaSefaz = require("./sefazSend");
 		dados.chave
 	).trim();
 
-	// Remove qualquer header residual (proteção extra)
 	const assinadoSemHeader = assinado.replace(/<\?xml.*?\?>/, "").trim();
 
-	// Salva localmente para inspeção
-	fs.writeFileSync("xml-assinado.xml", assinadoSemHeader);
+	// ✅ injeta infNFeSupl após a assinatura
+	const infNFeSupl = `
+	<infNFeSupl>
+		<qrCode>${dados.suplementar.qrCode}</qrCode>
+		<urlChave>${dados.suplementar.urlChave}</urlChave>
+	</infNFeSupl>`;
+
+	const assinadoComSupl = assinadoSemHeader.replace(
+		"</ds:Signature>",
+		"</ds:Signature>" + infNFeSupl.trim()
+	);
+
+	fs.writeFileSync("xml-assinado.xml", assinadoComSupl);
 	console.log("✅ XML assinado com sucesso e salvo como xml-assinado.xml");
 
-	// Envia o XML assinado já limpo para a SEFAZ
 	const resposta = await enviarXmlParaSefaz(
-		assinadoSemHeader,
+		assinadoComSupl,
 		certificatePem,
 		privateKeyPem
 	);
@@ -167,7 +200,6 @@ const enviarXmlParaSefaz = require("./sefazSend");
 	fs.writeFileSync("resposta-sefaz.xml", resposta);
 	console.log("📨 Enviado para SEFAZ! Resposta salva em resposta-sefaz.xml");
 
-	// 🔍 Extrai recibo (opcional)
 	const match = resposta.match(/<nRec>(.*?)<\/nRec>/);
 	if (match) {
 		console.log("📦 Recibo:", match[1]);
