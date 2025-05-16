@@ -1,71 +1,80 @@
 /** @format */
 
 const fs = require("fs");
+const crypto = require("crypto");
 const extractFromPfx = require("./extractPfx");
 const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
 const enviarXmlParaSefaz = require("./sefazSend");
-const crypto = require("crypto");
+const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 
 (async () => {
 	const pfxBuffer = fs.readFileSync("./certs/arquivoA1.p12");
 	const senha = "Fran!123";
 
 	const { privateKeyPem, certificatePem } = extractFromPfx(pfxBuffer, senha);
-
 	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
-	// ✅ DADOS FIXOS
-	const chave = "25250524836327000166550010000043909857920788";
+	// DADOS PARA GERAR A CHAVE DE ACESSO
+	const ide = {
+		cUF: "25",
+		cNF: "85792078",
+		natOp: "VENDA DE MERCADORIA",
+		mod: "65",
+		serie: "1",
+		nNF: "4390",
+		dhEmi: "2025-05-09T15:44:12-03:00",
+		tpNF: "1",
+		idDest: "1",
+		cMunFG: "2513901",
+		tpImp: "4",
+		tpEmis: "9",
+		tpAmb,
+		finNFe: "1",
+		indFinal: "1",
+		indPres: "1",
+		procEmi: "0",
+		verProc: "3.0.928.8245",
+		dhCont: "2025-05-09T15:44:12-03:00",
+		xJust: "NFC-e emitida em modo de Contingencia...",
+	};
+
+	const chave = gerarChaveAcesso({
+		cUF: ide.cUF,
+		AAMM: "2505",
+		CNPJ: "24836327000166",
+		mod: ide.mod,
+		serie: ide.serie,
+		nNF: ide.nNF,
+		tpEmis: ide.tpEmis,
+		cNF: ide.cNF,
+	});
+
+	ide.cDV = chave.slice(-1);
+
 	const CSC_ID = "1";
 	const CSC_TOKEN = "AEE30B6E3824DE8F4F6533B05EB1CBBED82C4782";
 
-	// ✅ GERA QR CODE COM HASH
 	const baseUrl =
 		tpAmb === "1"
 			? "http://www.sefaz.pb.gov.br/nfce"
 			: "http://www.sefaz.pb.gov.br/nfce";
 
 	const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${CSC_ID}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
-
 	const hash = crypto
 		.createHmac("sha1", CSC_TOKEN)
 		.update(qrCodeSemHash)
 		.digest("hex")
 		.toUpperCase();
-
 	const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
 
-	// ✅ MOCK COMPLETO COM QR CODE
 	const dados = {
 		chave,
 		suplementar: {
 			qrCode: qrCodeFinal,
 			urlChave: "www.sefaz.pb.gov.br/nfce/consulta",
 		},
-		ide: {
-			cUF: "25",
-			cNF: "85792078",
-			natOp: "VENDA DE MERCADORIA",
-			mod: "65",
-			serie: "1",
-			nNF: "4390",
-			dhEmi: "2025-05-09T15:44:12-03:00",
-			tpNF: "1",
-			idDest: "1",
-			cMunFG: "2513901",
-			tpImp: "4",
-			tpEmis: "9",
-			cDV: "8",
-			tpAmb,
-			finNFe: "1",
-			indFinal: "1",
-			indPres: "1",
-			procEmi: "0",
-			verProc: "3.0.928.8245",
-			dhCont: "2025-05-09T15:44:12-03:00",
-			xJust: "NFC-e emitida em modo de Contingencia...",
-		},
+		ide,
 		emit: {
 			CNPJ: "24836327000166",
 			xNome: "JANIO DUTRA DA SILVA",
@@ -88,7 +97,8 @@ const crypto = require("crypto");
 		prod: {
 			cProd: "1",
 			cEAN: "SEM GTIN",
-			xProd: "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+			xProd:
+				"NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
 			NCM: "33049910",
 			CFOP: "5102",
 			uCom: "UN",
@@ -154,7 +164,8 @@ const crypto = require("crypto");
 			vPag: "2.33",
 		},
 		infAdic: {
-			infCpl: "Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
+			infCpl:
+				"Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
 		},
 		infRespTec: {
 			CNPJ: "11918344000109",
@@ -173,10 +184,8 @@ const crypto = require("crypto");
 		certificatePem,
 		dados.chave
 	).trim();
-
 	const assinadoSemHeader = assinado.replace(/<\?xml.*?\?>/, "").trim();
 
-	// ✅ injeta infNFeSupl após a assinatura
 	const infNFeSupl = `
 	<infNFeSupl>
 		<qrCode>${dados.suplementar.qrCode}</qrCode>

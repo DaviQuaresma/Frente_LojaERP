@@ -45,7 +45,7 @@ module.exports = function gerarXmlNfe(dados) {
 			.ele("xJust").txt(dados.ide.xJust).up();
 	}
 
-	// // ✅ infNFeSupl - QRCODE e URL
+	// ✅ infNFeSupl - QRCODE e URL
 	// if (
 	// 	dados.ide.tpEmis === "9" &&
 	// 	dados.suplementar &&
