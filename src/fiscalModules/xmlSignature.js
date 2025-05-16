@@ -6,27 +6,34 @@ const crypto = require("crypto");
 function assinarXml(xmlString, privateKeyPem, certificatePem, chave) {
 	const doc = new DOMParser().parseFromString(xmlString, "text/xml");
 
+	// 1. Localiza o nó infNFe
 	const infNFeNode = doc.getElementsByTagName("infNFe")[0];
 
-	// 1. Canonicaliza infNFe
-	const canonicalXml = new XMLSerializer().serializeToString(infNFeNode);
-
+	// 2. Canonicaliza infNFe
+	const canonicalXml = new XMLSerializer().serializeToString(infNFeNode).trim();
 	const canonicalBuffer = Buffer.from(canonicalXml, "utf-8");
 	const hash = crypto
 		.createHash("sha1")
 		.update(canonicalBuffer)
 		.digest("base64");
 
-	// 2. Cria o XML da Signature
+	// 3. Limpa o certificado
+	const certificadoLimpo = certificatePem
+		.replace(/-----BEGIN CERTIFICATE-----/g, "")
+		.replace(/-----END CERTIFICATE-----/g, "")
+		.replace(/(\r\n|\n|\r|\s+)/g, "")
+		.trim();
+
+	// 4. Monta a estrutura XML da assinatura
 	const signatureXml = `
 <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
   <SignedInfo>
-    <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+    <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
     <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
     <Reference URI="#NFe${chave}">
       <Transforms>
         <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
-        <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
       </Transforms>
       <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
       <DigestValue>${hash}</DigestValue>
@@ -35,33 +42,31 @@ function assinarXml(xmlString, privateKeyPem, certificatePem, chave) {
   <SignatureValue></SignatureValue>
   <KeyInfo>
     <X509Data>
-      <X509Certificate>${certificatePem
-				.replace("-----BEGIN CERTIFICATE-----", "")
-				.replace("-----END CERTIFICATE-----", "")
-				.replace(/\n/g, "")}</X509Certificate>
+      <X509Certificate>${certificadoLimpo}</X509Certificate>
     </X509Data>
   </KeyInfo>
 </Signature>`.trim();
 
-	// 3. Assina o SignedInfo
+	// 5. Assina o SignedInfo
 	const signedDoc = new DOMParser().parseFromString(signatureXml, "text/xml");
 	const signedInfoNode = signedDoc.getElementsByTagName("SignedInfo")[0];
-	const signedInfoXml = new XMLSerializer().serializeToString(signedInfoNode);
+	const signedInfoXml = new XMLSerializer()
+		.serializeToString(signedInfoNode)
+		.trim();
 
-	const signature = crypto.createSign("RSA-SHA1");
-	signature.update(signedInfoXml);
-	const signatureValue = signature.sign(privateKeyPem, "base64");
+	const signer = crypto.createSign("RSA-SHA1");
+	signer.update(signedInfoXml);
+	const signatureValue = signer.sign(privateKeyPem, "base64");
 
-	// 4. Coloca o valor na SignatureValue
 	signedDoc.getElementsByTagName("SignatureValue")[0].textContent =
 		signatureValue;
 
-	// 5. Importa a <Signature> final no XML original
+	// 6. Insere a <Signature> após <infNFe>
 	const finalSignatureNode = doc.importNode(signedDoc.documentElement, true);
-	doc.documentElement.appendChild(finalSignatureNode);
+	doc.documentElement.insertBefore(finalSignatureNode, infNFeNode.nextSibling);
 
-	// 6. Retorna XML final
-	return new XMLSerializer().serializeToString(doc);
+	// 7. Retorna o XML assinado final, sem espaços extras
+	return new XMLSerializer().serializeToString(doc).trim();
 }
 
 module.exports = assinarXml;

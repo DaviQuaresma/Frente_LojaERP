@@ -4,12 +4,15 @@ const fs = require("fs");
 const extractFromPfx = require("./extractPfx");
 const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
+const enviarXmlParaSefaz = require("./sefazSend");
 
 (async () => {
 	const pfxBuffer = fs.readFileSync("./certs/arquivoA1.p12");
 	const senha = "Fran!123";
 
 	const { privateKeyPem, certificatePem } = extractFromPfx(pfxBuffer, senha);
+
+	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
 	const dados = {
 		chave: "25250524836327000166550010000043909857920788",
@@ -27,7 +30,7 @@ const assinarXml = require("./xmlSignature");
 			tpImp: "4",
 			tpEmis: "9",
 			cDV: "8",
-			tpAmb: "1",
+			tpAmb: tpAmb,
 			finNFe: "1",
 			indFinal: "1",
 			indPres: "1",
@@ -135,9 +138,40 @@ const assinarXml = require("./xmlSignature");
 		},
 	};
 
-	const xml = generateXml(dados);
-	const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave);
+	// Gera o XML e remove espaços extras
+	const xml = generateXml(dados).trim();
+	console.log("🔍 XML GERADO:\n", xml);
 
-	fs.writeFileSync("xml-assinado.xml", assinado);
+	// Assina o XML limpo
+	const assinado = assinarXml(
+		xml,
+		privateKeyPem,
+		certificatePem,
+		dados.chave
+	).trim();
+
+	// Remove qualquer header residual (proteção extra)
+	const assinadoSemHeader = assinado.replace(/<\?xml.*?\?>/, "").trim();
+
+	// Salva localmente para inspeção
+	fs.writeFileSync("xml-assinado.xml", assinadoSemHeader);
 	console.log("✅ XML assinado com sucesso e salvo como xml-assinado.xml");
+
+	// Envia o XML assinado já limpo para a SEFAZ
+	const resposta = await enviarXmlParaSefaz(
+		assinadoSemHeader,
+		certificatePem,
+		privateKeyPem
+	);
+
+	fs.writeFileSync("resposta-sefaz.xml", resposta);
+	console.log("📨 Enviado para SEFAZ! Resposta salva em resposta-sefaz.xml");
+
+	// 🔍 Extrai recibo (opcional)
+	const match = resposta.match(/<nRec>(.*?)<\/nRec>/);
+	if (match) {
+		console.log("📦 Recibo:", match[1]);
+	} else {
+		console.log("⚠️ Nenhum recibo retornado. Verifique a resposta da SEFAZ.");
+	}
 })();

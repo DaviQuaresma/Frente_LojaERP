@@ -3,12 +3,20 @@
 const { create } = require("xmlbuilder2");
 
 module.exports = function gerarXmlNfe(dados) {
-	const doc = create({ version: "1.0", encoding: "UTF-8" })
-		.ele("NFe", { xmlns: "http://www.portalfiscal.inf.br/nfe" })
-		.ele("infNFe", { versao: "4.00", Id: `NFe${dados.chave}` })
+	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
-		// ide
-		.ele("ide")
+	const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("NFe", {
+		xmlns: "http://www.portalfiscal.inf.br/nfe",
+	});
+
+	// ============================
+	// IDE - Identificação da NFe
+	// ============================
+	const infNFe = doc.ele("infNFe", { versao: "4.00", Id: `NFe${dados.chave}` });
+
+	// ide - Identificação da NFe
+	const ide = infNFe.ele("ide");
+	ide
 		.ele("cUF")
 		.txt(dados.ide.cUF)
 		.up()
@@ -49,7 +57,7 @@ module.exports = function gerarXmlNfe(dados) {
 		.txt(dados.ide.cDV)
 		.up()
 		.ele("tpAmb")
-		.txt(dados.ide.tpAmb)
+		.txt(tpAmb)
 		.up()
 		.ele("finNFe")
 		.txt(dados.ide.finNFe)
@@ -59,23 +67,46 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("indPres")
 		.txt(dados.ide.indPres)
-		.up()
+		.up();
+
+	if (dados.ide.indIntermed) {
+		ide.ele("indIntermed").txt(dados.ide.indIntermed).up();
+	}
+
+	ide
 		.ele("procEmi")
 		.txt(dados.ide.procEmi)
 		.up()
 		.ele("verProc")
 		.txt(dados.ide.verProc)
-		.up()
-		.ele("dhCont")
-		.txt(dados.ide.dhCont)
-		.up()
-		.ele("xJust")
-		.txt(dados.ide.xJust)
-		.up()
-		.up()
+		.up();
 
-		// emit
-		.ele("emit")
+	// dhCont e xJust (somente se tpEmis === 9)
+	if (dados.ide.tpEmis === "9") {
+		ide
+			.ele("dhCont")
+			.txt(dados.ide.dhCont)
+			.up()
+			.ele("xJust")
+			.txt(dados.ide.xJust)
+			.up();
+	}
+
+	// infNFeSupl (somente se tpEmis === 9)
+	if (
+		dados.ide.tpEmis === "9" &&
+		dados.suplementar &&
+		dados.suplementar.qrCode &&
+		dados.suplementar.urlChave
+	) {
+		const infNFeSupl = infNFe.ele("infNFeSupl");
+		infNFeSupl.ele("qrCode").txt(dados.suplementar.qrCode);
+		infNFeSupl.ele("urlChave").txt(dados.suplementar.urlChave);
+	}
+
+	// emitente
+	const emit = infNFe.ele("emit");
+	emit
 		.ele("CNPJ")
 		.txt(dados.emit.CNPJ)
 		.up()
@@ -84,8 +115,10 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("xFant")
 		.txt(dados.emit.xFant)
-		.up()
-		.ele("enderEmit")
+		.up();
+
+	const enderEmit = emit.ele("enderEmit");
+	enderEmit
 		.ele("xLgr")
 		.txt(dados.emit.enderEmit.xLgr)
 		.up()
@@ -115,19 +148,15 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("fone")
 		.txt(dados.emit.enderEmit.fone)
-		.up()
-		.up()
-		.ele("IE")
-		.txt(dados.emit.IE)
-		.up()
-		.ele("CRT")
-		.txt(dados.emit.CRT)
-		.up()
-		.up()
+		.up();
 
-		// det (detalhes do item)
-		.ele("det", { nItem: "1" })
-		.ele("prod")
+	emit.ele("IE").txt(dados.emit.IE).up().ele("CRT").txt(dados.emit.CRT).up();
+
+	// det (detalhes dos produtos)
+	const det = infNFe.ele("det", { nItem: "1" });
+
+	const prod = det.ele("prod");
+	prod
 		.ele("cProd")
 		.txt(dados.prod.cProd)
 		.up()
@@ -169,14 +198,13 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("indTot")
 		.txt(dados.prod.indTot)
-		.up()
-		.up()
-		.ele("imposto")
-		.ele("vTotTrib")
-		.txt(dados.imposto.vTotTrib)
-		.up()
-		.ele("ICMS")
-		.ele("ICMS00")
+		.up();
+
+	const imposto = det.ele("imposto");
+	imposto.ele("vTotTrib").txt(dados.imposto.vTotTrib).up();
+
+	const icms = imposto.ele("ICMS").ele("ICMS00");
+	icms
 		.ele("orig")
 		.txt(dados.imposto.ICMS.orig)
 		.up()
@@ -194,11 +222,10 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("vICMS")
 		.txt(dados.imposto.ICMS.vICMS)
-		.up()
-		.up()
-		.up()
-		.ele("PIS")
-		.ele("PISAliq")
+		.up();
+
+	const pis = imposto.ele("PIS").ele("PISAliq");
+	pis
 		.ele("CST")
 		.txt(dados.imposto.PIS.CST)
 		.up()
@@ -210,11 +237,10 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("vPIS")
 		.txt(dados.imposto.PIS.vPIS)
-		.up()
-		.up()
-		.up()
-		.ele("COFINS")
-		.ele("COFINSAliq")
+		.up();
+
+	const cofins = imposto.ele("COFINS").ele("COFINSAliq");
+	cofins
 		.ele("CST")
 		.txt(dados.imposto.COFINS.CST)
 		.up()
@@ -226,15 +252,12 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("vCOFINS")
 		.txt(dados.imposto.COFINS.vCOFINS)
-		.up()
-		.up()
-		.up()
-		.up()
-		.up()
+		.up();
 
-		// total
-		.ele("total")
-		.ele("ICMSTot")
+	// total
+	const total = infNFe.ele("total").ele("ICMSTot");
+
+	total
 		.ele("vBC")
 		.txt(dados.total.vBC)
 		.up()
@@ -294,38 +317,25 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("vTotTrib")
 		.txt(dados.total.vTotTrib)
-		.up()
-		.up()
-		.up()
+		.up();
 
-		// transporte
-		.ele("transp")
-		.ele("modFrete")
-		.txt(dados.transp.modFrete)
-		.up()
-		.up()
+	// transp
+	const transp = infNFe.ele("transp");
+	transp.ele("modFrete").txt(dados.transp.modFrete).up();
 
-		// pagamento
-		.ele("pag")
-		.ele("detPag")
-		.ele("tPag")
-		.txt(dados.pag.tPag)
-		.up()
-		.ele("vPag")
-		.txt(dados.pag.vPag)
-		.up()
-		.up()
-		.up()
+	// pag
+	const pag = infNFe.ele("pag");
+	const detPag = pag.ele("detPag");
+	detPag.ele("tPag").txt(dados.pag.tPag);
+	detPag.ele("vPag").txt(dados.pag.vPag);
 
-		// informações adicionais
-		.ele("infAdic")
-		.ele("infCpl")
-		.txt(dados.infAdic.infCpl)
-		.up()
-		.up()
+	// infAdic
+	const infAdic = infNFe.ele("infAdic");
+	infAdic.ele("infCpl").txt(dados.infAdic.infCpl);
 
-		// responsável técnico
-		.ele("infRespTec")
+	// infRespTec
+	const respTec = infNFe.ele("infRespTec");
+	respTec
 		.ele("CNPJ")
 		.txt(dados.infRespTec.CNPJ)
 		.up()
@@ -337,11 +347,7 @@ module.exports = function gerarXmlNfe(dados) {
 		.up()
 		.ele("fone")
 		.txt(dados.infRespTec.fone)
-		.up()
-		.up()
+		.up();
 
-		.up() // fecha infNFe
-		.end({ prettyPrint: true });
-
-	return doc;
-}
+	return doc.doc().end({ headless: false, prettyPrint: false });
+};

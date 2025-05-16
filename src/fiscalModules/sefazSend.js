@@ -1,37 +1,45 @@
 /** @format */
 
-import axios from "axios";
-import https from "https";
+const axios = require("axios");
+const https = require("https");
 
-async function enviarXmlParaSefaz(
-	xmlAssinado,
-	certificadoPem,
-	chavePrivada
-) {
+const urlSefaz =
+	process.env.NODE_ENV === "production"
+		? "https://nfce.sefaz.pb.gov.br/NFCEe4/services/NfeAutorizacao4"
+		: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx";
+
+async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada) {
 	const agent = new https.Agent({
 		cert: certificadoPem,
 		key: chavePrivada,
 		rejectUnauthorized: false,
 	});
 
-	const soapEnvelope = `
-    <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">
-      <soap:Header/>
-      <soap:Body>
-        <nfe:nfeDadosMsg>
-          ${xmlAssinado}
-        </nfe:nfeDadosMsg>
-      </soap:Body>
-    </soap:Envelope>`;
+	// Remove o cabeçalho XML (<?xml ... ?>) e espaços extras
+	const xmlLimpo = xmlAssinado.replace(/<\?xml.*?\?>/, "").trim();
 
-	const { data } = await axios.post(
-		"https://nfce.sefaz.pb.gov.br/NFCEe4/services/NfeAutorizacao4?wsdl",
-		soapEnvelope,
-		{
-			httpsAgent: agent,
-			headers: { "Content-Type": "application/soap+xml; charset=utf-8" },
-		}
-	);
+	// Monta o enviNFe
+	const enviNFeXml = `<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><idLote>000000000000001</idLote><indSinc>1</indSinc>${xmlLimpo}</enviNFe>`;
 
-	return data;
+	// Monta o envelope SOAP completo
+	const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+							<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+							<soap12:Body>
+								<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">
+								${enviNFeXml}
+								</nfeDadosMsg>
+							</soap12:Body>
+							</soap12:Envelope>`.trim();
+
+	// Envia para a SEFAZ
+	const response = await axios.post(urlSefaz, soapEnvelope, {
+		httpsAgent: agent,
+		headers: {
+			"Content-Type": "application/soap+xml; charset=utf-8",
+		},
+	});
+
+	return response.data;
 }
+
+module.exports = enviarXmlParaSefaz;
