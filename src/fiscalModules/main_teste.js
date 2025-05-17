@@ -7,7 +7,7 @@ const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
 const enviarXmlParaSefaz = require("./sefazSend");
 const montarProcNFe = require("./montarProcNFe");
-const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
+const gerarChaveAcesso = require("../utils/gerarChaveAcesso");
 
 (async () => {
 	const pfxBuffer = fs.readFileSync("./certs/arquivoA1.p12");
@@ -16,7 +16,6 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 	const { privateKeyPem, certificatePem } = extractFromPfx(pfxBuffer, senha);
 	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
-	// DADOS PARA GERAR A CHAVE DE ACESSO
 	const ide = {
 		cUF: "25",
 		cNF: "85792078",
@@ -56,11 +55,7 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 	const CSC_ID = "1";
 	const CSC_TOKEN = "AEE30B6E3824DE8F4F6533B05EB1CBBED82C4782";
 
-	const baseUrl =
-		tpAmb === "1"
-			? "http://www.sefaz.pb.gov.br/nfce"
-			: "http://www.sefaz.pb.gov.br/nfce";
-
+	const baseUrl = "http://www.sefaz.pb.gov.br/nfce";
 	const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${CSC_ID}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
 	const hash = crypto
 		.createHmac("sha1", CSC_TOKEN)
@@ -157,13 +152,8 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 			vNF: "2.33",
 			vTotTrib: "1.19",
 		},
-		transp: {
-			modFrete: "9",
-		},
-		pag: {
-			tPag: "01",
-			vPag: "2.33",
-		},
+		transp: { modFrete: "9" },
+		pag: { tPag: "01", vPag: "2.33" },
 		infAdic: {
 			infCpl:
 				"Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
@@ -177,8 +167,6 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 	};
 
 	const xml = generateXml(dados).trim();
-	console.log("🔍 XML GERADO:\n", xml);
-
 	const assinado = assinarXml(
 		xml,
 		privateKeyPem,
@@ -187,30 +175,33 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 	).trim();
 	const assinadoSemHeader = assinado.replace(/<\?xml.*?\?>/, "").trim();
 
-	const infNFeSupl = `
-	<infNFeSupl>
-		<qrCode>${dados.suplementar.qrCode}</qrCode>
-		<urlChave>${dados.suplementar.urlChave}</urlChave>
-	</infNFeSupl>`;
-
-	const assinadoComSupl = assinadoSemHeader;
-
-	fs.writeFileSync("xml-assinado.xml", assinadoComSupl);
-	console.log("✅ XML assinado com sucesso e salvo como xml-assinado.xml");
+	fs.writeFileSync("xml-assinado.xml", assinadoSemHeader);
+	console.log("✅ XML assinado salvo como xml-assinado.xml");
 
 	const resposta = await enviarXmlParaSefaz(
-		assinadoComSupl,
+		assinadoSemHeader,
 		certificatePem,
 		privateKeyPem
 	);
-
 	fs.writeFileSync("resposta-sefaz.xml", resposta);
-	console.log("📨 Enviado para SEFAZ! Resposta salva em resposta-sefaz.xml");
+	console.log("📨 Resposta da SEFAZ salva como resposta-sefaz.xml");
 
-	const match = resposta.match(/<nRec>(.*?)<\/nRec>/);
-	if (match) {
-		console.log("📦 Recibo:", match[1]);
-	} else {
-		console.log("⚠️ Nenhum recibo retornado. Verifique a resposta da SEFAZ.");
+	// Captura o protocolo <protNFe> da resposta
+	const matchProt = resposta.match(/<protNFe.*<\/protNFe>/s);
+	if (!matchProt) {
+		console.log("❌ Erro: protocolo de autorização não encontrado!");
+		return;
 	}
+	const protNFeXml = `<?xml version="1.0" encoding="UTF-8"?>\n${matchProt[0]}`;
+
+	// Monta XML final
+	const procNFeFinal = montarProcNFe(
+		assinadoSemHeader,
+		dados.suplementar.qrCode,
+		dados.suplementar.urlChave,
+		protNFeXml
+	);
+
+	fs.writeFileSync("nfe-autorizada.xml", procNFeFinal);
+	console.log("🎉 XML autorizado salvo como nfe-autorizada.xml");
 })();
