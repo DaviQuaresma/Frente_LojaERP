@@ -1,10 +1,4 @@
 ✅ Avaliação das Propostas
-1. Botão para alternar entre Produção e Homologação
-Viável: criar uma interface para mudar a process.env.NODE_ENV ou armazenar o valor atual em config.json.
-
-Implementação: botão com localStorage + reload ou gravação em arquivo settings.json que é lido na inicialização.
-
-Tempo estimado: 1 hora.
 
 2. Salvar conexões de banco já logadas
 Sugestão: criar um dbConnections.json com {nome, host, user, database, porta}.

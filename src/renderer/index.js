@@ -22,51 +22,6 @@ async function atualizarTituloEmpresa() {
 		console.warn("⚠️ Erro ao atualizar nome da empresa:", e);
 	}
 }
-// async function carregarBancosSalvos() {
-// 	const bancos = await window.electronAPI.listSavedDatabases();
-// 	bancoSelect.innerHTML = "";
-
-// 	bancos.forEach((banco) => {
-// 		const option = document.createElement("option");
-// 		option.value = banco.database;
-// 		option.textContent = banco.database;
-// 		bancoSelect.appendChild(option);
-// 	});
-// }
-
-btnAtivarBanco.addEventListener("click", async () => {
-	const databaseSelecionado = bancoSelect.value;
-
-	if (!databaseSelecionado) {
-		alert("Selecione um banco de dados.");
-		return;
-	}
-
-	const resultado = await window.electronAPI.setActiveDatabase(
-		databaseSelecionado
-	);
-
-	if (resultado.success) {
-		alert(
-			`✅ Banco "${resultado.banco}" ativado! Reinicie o sistema para aplicar.`
-		);
-	} else {
-		alert(`❌ Erro: ${resultado.message}`);
-	}
-});
-
-// Busca dados de um produto no banco
-async function buscarProduto(pro_codigo) {
-	try {
-		const resultado = await window.electronAPI.buscarProduto(pro_codigo);
-		if (resultado?.rows?.length) {
-			return resultado.rows[0]; // agora sim, acessa o resultado correto
-		}
-	} catch (e) {
-		console.warn("⚠️ Erro ao buscar produto:", e);
-	}
-	return null;
-}
 
 document
 	.getElementById("salvar-config-banco")
@@ -85,16 +40,56 @@ document
 		}
 
 		const config = { host, port, user, password, database };
+
+		// Testa a conexão
 		const resultado = await window.electronAPI.salvarConfigBanco(config);
 
-		if (resultado.success) {
-			statusDiv.textContent = "✅ Conexão testada e salva com sucesso!";
-			statusDiv.className = "text-success fw-bold text-center mt-3";
-		} else {
+		if (!resultado.success) {
 			statusDiv.textContent = `❌ Erro: ${resultado.error}`;
 			statusDiv.className = "text-danger fw-bold text-center mt-3";
+			return;
 		}
+
+		// Busca configuração atual do arquivo db_settings.json
+		const configAtual = await window.electronAPI.getDatabaseConfig();
+
+		// Salva como novo banco e define como ativo
+		const novoConfig = {
+			salvos: {
+				...(configAtual.salvos || {}),
+				[database]: config,
+			},
+			ativo: database,
+		};
+
+		await window.electronAPI.setDatabaseConfig(novoConfig);
+
+		statusDiv.textContent = "✅ Conexão testada e salva com sucesso!";
+		statusDiv.className = "text-success fw-bold text-center mt-3";
+
+		// Atualiza o select de bancos
+		const select = document.getElementById("selectBancoSalvo");
+		select.innerHTML = "";
+		Object.entries(novoConfig.salvos).forEach(([nome, dados]) => {
+			const option = document.createElement("option");
+			option.value = nome;
+			option.textContent = `${nome} (${dados.database})`;
+			select.appendChild(option);
+		});
 	});
+
+// Busca dados de um produto no banco
+async function buscarProduto(pro_codigo) {
+	try {
+		const resultado = await window.electronAPI.buscarProduto(pro_codigo);
+		if (resultado?.rows?.length) {
+			return resultado.rows[0];
+		}
+	} catch (e) {
+		console.warn("⚠️ Erro ao buscar produto:", e);
+	}
+	return null;
+}
 
 // Processar vendas
 botao.addEventListener("click", async () => {
@@ -289,77 +284,32 @@ window.mudarPagina = function (novaPagina) {
 carregarHistorico();
 atualizarTituloEmpresa();
 
-// 🔄 Troca de banco
-document
-	.getElementById("cfg-db-confirmar")
-	?.addEventListener("click", async () => {
-		const bancoSelecionado = document.getElementById("cfg-db-select").value;
+document.addEventListener("DOMContentLoaded", async () => {
+	const label = document.getElementById("ambienteLabel");
+	const botao = document.getElementById("botaoAmbiente");
 
-		try {
-			console.log("🔁 Salvando banco:", bancoSelecionado);
+	const ambiente = await window.electronAPI.getAmbienteAtual();
 
-			const configAtual = await window.electronAPI.getConfig();
-			const res = await window.electronAPI.salvarConfig({
-				...configAtual,
-				database: bancoSelecionado,
-			});
-
-			if (res.success) {
-				document.getElementById(
-					"configStatus"
-				).textContent = `✅ Banco salvo: ${bancoSelecionado}`;
-				await atualizarTituloEmpresa(); // 🔁 Atualiza nome da empresa
-				await carregarHistorico(); // 🔁 Atualiza histórico com novo banco
-			} else {
-				alert(`❌ Erro ao atualizar banco: ${res.message}`);
-			}
-		} catch (err) {
-			console.error("Erro ao salvar banco:", err);
-			alert("❌ Erro inesperado ao salvar banco.");
-		}
-	});
-
-// 🧾 Atualiza histórico ao abrir aba "Histórico"
-document
-	.getElementById("historico-tab")
-	?.addEventListener("shown.bs.tab", () => {
-		paginaAtual = 1;
-		carregarHistorico();
-	});
-
-// 🔄 Atualizar histórico ao mudar filtros (corrigido)
-const filtroOrderBy = document.getElementById("filtroOrderBy");
-const filtroDirection = document.getElementById("filtroDirection");
-
-if (filtroOrderBy) {
-	filtroOrderBy.addEventListener("change", () => {
-		paginaAtual = 1;
-		carregarHistorico();
-	});
-}
-
-if (filtroDirection) {
-	filtroDirection.addEventListener("change", () => {
-		paginaAtual = 1;
-		carregarHistorico();
-	});
-}
-
-// 🔃 Preenche banco salvo no select ao iniciar
-(async () => {
-	try {
-		const config = await window.electronAPI.getConfig();
-		if (config?.database) {
-			document.getElementById("cfg-db-select").value = config.database;
-		}
-	} catch (e) {
-		console.warn("⚠️ Erro ao carregar config:", e);
+	if (ambiente === "production") {
+		label.textContent = "Produção";
+		botao.classList.remove("btn-warning");
+		botao.classList.add("btn-success");
+	} else {
+		label.textContent = "Homologação";
+		botao.classList.remove("btn-success");
+		botao.classList.add("btn-warning");
 	}
-})();
+
+	botao.addEventListener("click", async () => {
+		const novo = ambiente === "production" ? "development" : "production";
+		await window.electronAPI.setAmbiente(novo);
+		window.location.reload();
+	});
+});
 
 document
 	.getElementById("btnSelecionarCertificado")
-	.addEventListener("click", async () => {
+	?.addEventListener("click", async () => {
 		const caminho = await window.electronAPI.selecionarCertificado();
 		if (caminho) {
 			document.getElementById("cfg-certificado").value = caminho;
@@ -368,7 +318,7 @@ document
 
 document
 	.getElementById("salvar-config-certificado")
-	.addEventListener("click", async () => {
+	?.addEventListener("click", async () => {
 		const caminho = document.getElementById("cfg-certificado").value;
 		const senha = document.getElementById("cfg-cert-senha").value;
 
@@ -393,26 +343,41 @@ document
 	});
 
 document.addEventListener("DOMContentLoaded", async () => {
-	const label = document.getElementById("ambienteLabel");
-	const botao = document.getElementById("botaoAmbiente");
+	const selectBanco = document.getElementById("selectBancoSalvo");
+	const btnAtivar = document.getElementById("btnAtivarBanco");
+	const ativacaoStatus = document.getElementById("ativacaoStatus");
 
-	const ambiente = await window.electronAPI.getAmbienteAtual();
+	const configAtual = await window.electronAPI.getDatabaseConfig();
 
-	// Define texto e classe condicional
-	if (ambiente === "production") {
-		label.textContent = "Produção";
-		botao.classList.remove("btn-warning");
-		botao.classList.add("btn-success");
+	if (configAtual && configAtual.salvos) {
+		selectBanco.innerHTML = "";
+		Object.entries(configAtual.salvos).forEach(([nome, dados]) => {
+			const option = document.createElement("option");
+			option.value = nome;
+			option.textContent = `${nome} (${dados.database})`;
+			selectBanco.appendChild(option);
+		});
 	} else {
-		label.textContent = "Homologação";
-		botao.classList.remove("btn-success");
-		botao.classList.add("btn-warning");
+		selectBanco.innerHTML = `<option disabled>Nenhum banco salvo</option>`;
 	}
 
-	// Troca de ambiente no clique
-	botao.addEventListener("click", async () => {
-		const novo = ambiente === "production" ? "development" : "production";
-		await window.electronAPI.setAmbiente(novo);
-		window.location.reload();
+	btnAtivar.addEventListener("click", async () => {
+		const selecionado = selectBanco.value;
+		if (!selecionado) return;
+
+		const novoConfig = {
+			...configAtual,
+			ativo: selecionado,
+		};
+
+		await window.electronAPI.setDatabaseConfig(novoConfig);
+
+		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
+		ativacaoStatus.classList.add("text-success");
+
+		setTimeout(() => {
+			ativacaoStatus.textContent = "";
+			ativacaoStatus.classList.remove("text-success");
+		}, 4000);
 	});
 });

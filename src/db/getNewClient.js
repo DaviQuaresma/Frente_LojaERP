@@ -1,26 +1,26 @@
 /** @format */
 
 const { Client } = require("pg");
-const { app } = require("electron");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 
-function getConfigPath() {
-	return path.join(app.getPath("userData"), "config.json");
-}
+const settingsPath = path.join(__dirname, "../config/db_settings.json");
 
-function carregarConfigBanco() {
-	const mainPath = getConfigPath();
-	if (!fs.existsSync(mainPath)) return null;
-	const { active } = JSON.parse(fs.readFileSync(mainPath, "utf-8"));
-	const dbPath = path.join(app.getPath("userData"), `${active}.json`);
-	if (!fs.existsSync(dbPath)) return null;
-	return JSON.parse(fs.readFileSync(dbPath, "utf-8"));
+function carregarBancoAtivo() {
+	if (!fs.existsSync(settingsPath))
+		throw new Error("Arquivo db_settings.json não encontrado");
+
+	const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+
+	if (!settings.ativo || !settings.salvos || !settings.salvos[settings.ativo]) {
+		throw new Error("Banco de dados ativo não está definido corretamente.");
+	}
+
+	return settings.salvos[settings.ativo];
 }
 
 async function getNewClient() {
-	const config = carregarConfigBanco();
-	if (!config) throw new Error("⚠️ Nenhuma configuração de banco foi salva.");
+	const config = carregarBancoAtivo();
 	const client = new Client(config);
 	await client.connect();
 	return client;

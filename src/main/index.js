@@ -1,140 +1,36 @@
 /** @format */
 
 const path = require("path");
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const fs = require("fs");
 const { Client } = require("pg");
-const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
 
-const {
-	salvarConfigBanco,
-	listarBancosSalvos,
-	setBancoAtivo,
-} = require("../db/configService");
-const { createSale } = require(path.join(
-	__dirname,
-	"../services/salesService"
-));
+const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
+const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
+
+const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 
-const userDataPath = app.getPath("userData");
-const configPath = path.join(userDataPath, "config.json");
 const iconPath = path.join(__dirname, "../../logo.png");
-
-if (!fs.existsSync(configPath)) {
-	fs.writeFileSync(
-		configPath,
-		JSON.stringify({ active: "demonstracao" }, null, 2)
-	);
-}
 
 function createWindow() {
 	const win = new BrowserWindow({
 		width: 1000,
 		height: 800,
-		icon: iconPath, // ← aqui define o ícone da janela
+		icon: iconPath,
 		webPreferences: {
 			contextIsolation: true,
 			preload: path.join(__dirname, "../renderer/preload.js"),
-			sandbox: false, // opcionalmente true
+			sandbox: false,
 		},
 	});
 
 	win.loadFile(path.join(__dirname, "../renderer/index.html"));
-	// win.webContents.openDevTools();
 }
-
-ipcMain.handle("salvar-config-banco", async (_event, config) => {
-	try {
-		const connection = new Client(config);
-		await connection.connect();
-		await connection.end();
-
-		salvarConfigBanco(config);
-		console.log("🧩 Configuração salva:", config);
-		return { success: true };
-	} catch (err) {
-		console.error("Erro ao salvar conexão:", err);
-		return { success: false, error: err.message };
-	}
-});
-
-ipcMain.handle("get-p12", async () => {
-	try {
-		const connection = new Client(config);
-		await connection.connect();
-
-		const result = await connection.query(`
-			SELECT cer_caminho FROM certificado
-			WHERE cer_caminho IS NOT NULL AND cer_caminho <> ''
-			LIMIT 1
-		`);
-
-		if (result.rows.length) {
-			const caminho = result.rows[0].cer_caminho;
-			console.log("📂 Certificado encontrado:", caminho);
-
-			return {
-				success: true,
-				caminho,
-			};
-		}
-
-		return { success: false, error: "Nenhum certificado encontrado" };
-	} catch (err) {
-		console.error("Erro", err);
-		return { success: false, error: "Não tem certificado" };
-	}
-});
-
-ipcMain.handle("selecionar-certificado", async () => {
-	const win = BrowserWindow.getFocusedWindow();
-
-	const result = await dialog.showOpenDialog(win, {
-		title: "Selecionar Certificado A1",
-		filters: [{ name: "Certificados A1", extensions: ["p12"] }],
-		properties: ["openFile"],
-	});
-
-	console.log("Dialog result:", result);
-
-	if (result.canceled || result.filePaths.length === 0) {
-		return null;
-	}
-
-	return result.filePaths[0]; // Caminho do certificado
-});
-
-ipcMain.handle("definir-certificado", (event, dados) => {
-	global.certificadoAtivo = {
-		caminho: dados.caminho,
-		senha: dados.senha,
-	};
-	console.log("✅ Certificado definido:", global.certificadoAtivo);
-	return { success: true };
-});
-
-// ipcMain.handle("listar-bancos-salvos", () => {
-// 	try {
-// 		return listarBancosSalvos();
-// 	} catch (err) {
-// 		console.error("Erro ao listar bancos salvos:", err);
-// 		return [];
-// 	}
-// });
-
-ipcMain.handle("ativar-banco", (_event, nome) => {
-	try {
-		setBancoAtivo(nome);
-		return { success: true };
-	} catch (err) {
-		console.error("Erro ao ativar banco:", err);
-		return { success: false, message: err.message };
-	}
-});
 
 app.whenReady().then(() => {
 	createWindow();
+
 	app.on("activate", () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
@@ -144,6 +40,52 @@ app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });
 
+// 🌐 Ambiente
+ipcMain.handle("getAmbienteAtual", () => getAmbienteAtual());
+ipcMain.handle("setAmbiente", (_, valor) => setAmbiente(valor));
+
+// 🔐 Certificado
+ipcMain.handle("selecionar-certificado", async () => {
+	const win = BrowserWindow.getFocusedWindow();
+
+	const result = await dialog.showOpenDialog(win, {
+		title: "Selecionar Certificado A1",
+		filters: [{ name: "Certificados A1", extensions: ["p12"] }],
+		properties: ["openFile"],
+	});
+
+	if (result.canceled || result.filePaths.length === 0) return null;
+
+	return result.filePaths[0];
+});
+
+ipcMain.handle("definir-certificado", (_event, dados) => {
+	global.certificadoAtivo = {
+		caminho: dados.caminho,
+		senha: dados.senha,
+	};
+	console.log("✅ Certificado definido:", global.certificadoAtivo);
+	return { success: true };
+});
+
+// 🔌 Banco
+ipcMain.handle("getDatabaseConfig", () => getDatabaseConfig());
+ipcMain.handle("setDatabaseConfig", (_, novaCfg) => setDatabaseConfig(novaCfg));
+
+ipcMain.handle("salvar-config-banco", async (_event, config) => {
+	try {
+		const connection = new Client(config);
+		await connection.connect();
+		await connection.end();
+		console.log("✅ Conexão testada com sucesso:", config);
+		return { success: true };
+	} catch (err) {
+		console.error("❌ Erro ao testar conexão:", err);
+		return { success: false, error: err.message };
+	}
+});
+
+// 🛒 Venda
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
 	try {
 		console.log("📅 Valor recebido no handler:", valorAlvo);
@@ -151,12 +93,12 @@ ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
 		console.log("✅ Finalizou createSale");
 		return { success: true, message: "Venda criada com sucesso!" };
 	} catch (err) {
-		const errorMessage = `Erro ao criar venda: ${err?.message || err}`;
-		console.error("❌", errorMessage);
-		return { success: false, message: errorMessage };
+		console.error("❌ Erro ao criar venda:", err);
+		return { success: false, message: err.message || "Erro desconhecido" };
 	}
 });
 
+// 📜 Histórico
 ipcMain.handle(
 	"listar-vendas",
 	async (
@@ -164,35 +106,28 @@ ipcMain.handle(
 		{ orderBy = "data", direction = "desc", page = 1, limit = 10 } = {}
 	) => {
 		try {
-			const connection = await getNewClient();
-
-			// Sanitização básica
+			const client = await getNewClient();
+			const offset = (page - 1) * limit;
 			const orderColumns = ["total", "data"];
-			const orderCol = orderColumns.includes(orderBy) ? orderBy : "data";
+			const col = orderColumns.includes(orderBy) ? orderBy : "data";
 			const dir = direction.toLowerCase() === "asc" ? "ASC" : "DESC";
 
-			const offset = (page - 1) * limit;
-
-			const result = await connection.query(
+			const vendas = await client.query(
 				`
-				SELECT id, ven_cod_pedido, total, data, jsonb_array_length(itens) as qtdItens
-				FROM vendas_inserted
-				ORDER BY ${orderCol} ${dir}
-				LIMIT $1 OFFSET $2
-			`,
+			SELECT id, ven_cod_pedido, total, data, jsonb_array_length(itens) as qtdItens
+			FROM vendas_inserted
+			ORDER BY ${col} ${dir}
+			LIMIT $1 OFFSET $2
+		`,
 				[limit, offset]
 			);
 
-			const totalResult = await connection.query(
-				`SELECT COUNT(*) FROM vendas_inserted`
-			);
-			const total = parseInt(totalResult.rows[0].count, 10);
-
-			await connection.end();
+			const total = await client.query(`SELECT COUNT(*) FROM vendas_inserted`);
+			await client.end();
 
 			return {
-				total,
-				vendas: result.rows.map((v) => ({
+				total: parseInt(total.rows[0].count, 10),
+				vendas: vendas.rows.map((v) => ({
 					id: v.ven_cod_pedido,
 					total: parseFloat(v.total).toFixed(2),
 					data: new Date(v.data).toLocaleString("pt-BR"),
@@ -200,33 +135,13 @@ ipcMain.handle(
 				})),
 			};
 		} catch (err) {
-			console.error("Erro ao buscar histórico no banco:", err);
+			console.error("Erro ao buscar histórico:", err);
 			return { total: 0, vendas: [] };
 		}
 	}
 );
 
-ipcMain.handle("get-config", () => {
-	try {
-		if (!fs.existsSync(configPath)) return {};
-		const content = fs.readFileSync(configPath, "utf-8");
-		return JSON.parse(content);
-	} catch (err) {
-		console.error("Erro ao ler config.json:", err);
-		return {};
-	}
-});
-
-ipcMain.handle("save-config", (_e, cfg) => {
-	try {
-		fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
-		return { success: true };
-	} catch (err) {
-		console.error("Erro ao salvar config.json:", err);
-		return { success: false, message: err.message };
-	}
-});
-
+// 🏢 Nome da empresa
 ipcMain.handle("get-empresa", async () => {
 	try {
 		const client = await getNewClient();
@@ -237,15 +152,15 @@ ipcMain.handle("get-empresa", async () => {
 
 		if (result.rows.length > 0) {
 			return { success: true, nome: result.rows[0].emp_nomefantasia };
-		} else {
-			return { success: false, message: "Empresa não encontrada." };
 		}
+		return { success: false, message: "Empresa não encontrada." };
 	} catch (err) {
 		console.error("Erro ao buscar empresa:", err);
-		return { success: false, message: err.message || "Erro desconhecido" };
+		return { success: false, message: err.message };
 	}
 });
 
+// 🔎 Buscar produto
 ipcMain.handle("buscar-produto", async (_, codigo) => {
 	try {
 		const client = await getNewClient();
@@ -260,6 +175,3 @@ ipcMain.handle("buscar-produto", async (_, codigo) => {
 		return { rows: [], error: err.message };
 	}
 });
-
-ipcMain.handle("getAmbienteAtual", () => getAmbienteAtual());
-ipcMain.handle("setAmbiente", (_, valor) => setAmbiente(valor));
