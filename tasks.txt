@@ -1,12 +1,5 @@
 ✅ Avaliação das Propostas
 
-2. Salvar conexões de banco já logadas
-Sugestão: criar um dbConnections.json com {nome, host, user, database, porta}.
-
-Exibir no frontend: um select com esses dados salvos + botão "Conectar rapidamente".
-
-Tempo estimado: 2 a 3 horas (com interface de gerenciamento).
-
 3. Retornar resposta da SEFAZ com venda
 Implementação: salvar resposta-sefaz junto com ID da venda, e exibir status no histórico.
 

@@ -26,4 +26,14 @@ async function getNewClient() {
 	return client;
 }
 
-module.exports = { getNewClient };
+function getNomeBancoAtivo() {
+	if (!fs.existsSync(settingsPath)) return null;
+
+	const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+	return settings.ativo || null;
+}
+
+module.exports = {
+	getNewClient,
+	getNomeBancoAtivo,
+};

@@ -10,6 +10,7 @@ const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
+const { getNomeBancoAtivo } = require("../db/getNewClient");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 
@@ -85,6 +86,32 @@ ipcMain.handle("salvar-config-banco", async (_event, config) => {
 	}
 });
 
+ipcMain.handle("get-empresa", async () => {
+	try {
+		const client = await getNewClientFromDbSettings();
+		const result = await client.query(
+			"SELECT emp_nomefantasia FROM empresa LIMIT 1"
+		);
+		await client.end();
+
+		if (result.rows.length > 0) {
+			return {
+				success: true,
+				nome: result.rows[0].emp_nomefantasia,
+			};
+		} else {
+			return { success: false, message: "Empresa não encontrada." };
+		}
+	} catch (err) {
+		console.error("Erro ao buscar empresa:", err);
+		return { success: false, message: err.message };
+	}
+});
+
+ipcMain.handle("get-nome-banco-ativo", () => {
+	return getNomeBancoAtivo();
+});
+
 // 🛒 Venda
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
 	try {
@@ -140,25 +167,6 @@ ipcMain.handle(
 		}
 	}
 );
-
-// 🏢 Nome da empresa
-ipcMain.handle("get-empresa", async () => {
-	try {
-		const client = await getNewClient();
-		const result = await client.query(
-			"SELECT emp_nomefantasia FROM empresa LIMIT 1"
-		);
-		await client.end();
-
-		if (result.rows.length > 0) {
-			return { success: true, nome: result.rows[0].emp_nomefantasia };
-		}
-		return { success: false, message: "Empresa não encontrada." };
-	} catch (err) {
-		console.error("Erro ao buscar empresa:", err);
-		return { success: false, message: err.message };
-	}
-});
 
 // 🔎 Buscar produto
 ipcMain.handle("buscar-produto", async (_, codigo) => {

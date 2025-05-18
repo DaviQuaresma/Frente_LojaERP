@@ -14,12 +14,11 @@ let produtosSemEstoque = [];
 // Atualiza nome da empresa no topo
 async function atualizarTituloEmpresa() {
 	try {
-		const res = await window.electronAPI.getEmpresa();
-		if (res.success && res.nome) {
-			document.querySelector("h1.text-center").textContent = res.nome;
-		}
+		const config = await window.electronAPI.getDatabaseConfig();
+		const nomeBanco = config?.ativo || "Painel ERP";
+		document.getElementById("tituloEmpresa").textContent = nomeBanco;
 	} catch (e) {
-		console.warn("⚠️ Erro ao atualizar nome da empresa:", e);
+		console.warn("⚠️ Erro ao atualizar nome do banco:", e);
 	}
 }
 
@@ -66,6 +65,13 @@ document
 
 		statusDiv.textContent = "✅ Conexão testada e salva com sucesso!";
 		statusDiv.className = "text-success fw-bold text-center mt-3";
+
+		await atualizarTituloEmpresa(); // <- aqui
+
+		setTimeout(() => {
+			ativacaoStatus.textContent = "";
+			ativacaoStatus.classList.remove("text-success");
+		}, 4000);
 
 		// Atualiza o select de bancos
 		const select = document.getElementById("selectBancoSalvo");
@@ -366,11 +372,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 		if (!selecionado) return;
 
 		const novoConfig = {
-			...configAtual,
+			...(await window.electronAPI.getDatabaseConfig()),
 			ativo: selecionado,
 		};
 
 		await window.electronAPI.setDatabaseConfig(novoConfig);
+
+		// ⬇️ Atualiza o título dinamicamente
+		await atualizarTituloEmpresa();
 
 		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
 		ativacaoStatus.classList.add("text-success");
