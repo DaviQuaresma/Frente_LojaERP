@@ -58,6 +58,61 @@ ipcMain.handle("salvar-config-banco", async (_event, config) => {
 	}
 });
 
+ipcMain.handle("get-p12", async () => {
+	try {
+		const connection = new Client(config);
+		await connection.connect();
+
+		const result = await connection.query(`
+			SELECT cer_caminho FROM certificado
+			WHERE cer_caminho IS NOT NULL AND cer_caminho <> ''
+			LIMIT 1
+		`);
+
+		if (result.rows.length) {
+			const caminho = result.rows[0].cer_caminho;
+			console.log("📂 Certificado encontrado:", caminho);
+
+			return {
+				success: true,
+				caminho,
+			};
+		}
+
+		return { success: false, error: "Nenhum certificado encontrado" };
+	} catch (err) {
+		console.error("Erro", err);
+		return { success: false, error: "Não tem certificado" };
+	}
+});
+
+ipcMain.handle("selecionar-certificado", async () => {
+	const win = BrowserWindow.getFocusedWindow();
+
+	const result = await dialog.showOpenDialog(win, {
+		title: "Selecionar Certificado A1",
+		filters: [{ name: "Certificados A1", extensions: ["p12"] }],
+		properties: ["openFile"],
+	});
+
+	console.log("Dialog result:", result);
+
+	if (result.canceled || result.filePaths.length === 0) {
+		return null;
+	}
+
+	return result.filePaths[0]; // Caminho do certificado
+});
+
+ipcMain.handle("definir-certificado", (event, dados) => {
+	global.certificadoAtivo = {
+		caminho: dados.caminho,
+		senha: dados.senha,
+	};
+	console.log("✅ Certificado definido:", global.certificadoAtivo);
+	return { success: true };
+});
+
 // ipcMain.handle("listar-bancos-salvos", () => {
 // 	try {
 // 		return listarBancosSalvos();
@@ -168,19 +223,6 @@ ipcMain.handle("save-config", (_e, cfg) => {
 	} catch (err) {
 		console.error("Erro ao salvar config.json:", err);
 		return { success: false, message: err.message };
-	}
-});
-
-ipcMain.handle("selecionar-pasta-exportacao", async () => {
-	try {
-		const result = await dialog.showOpenDialog({
-			properties: ["openDirectory"],
-		});
-		if (result.canceled || !result.filePaths.length) return null;
-		return result.filePaths[0];
-	} catch (err) {
-		console.error("❌ Erro ao selecionar pasta:", err);
-		return null;
 	}
 });
 

@@ -13,6 +13,8 @@ const {
 	createTriggerNf_number,
 	checkRequiredColumns,
 } = require("../utils/dbCommands");
+
+const mainFiscal = require("../fiscalModules/main");
 const { getNewClient } = require("../db/getNewClient");
 
 function shuffleArray(array) {
@@ -166,6 +168,26 @@ async function createSale(valorAlvo) {
 
 		await connection.query("COMMIT");
 		console.log(`✅ Venda ${vendaId} finalizada com ${itensInseridos} itens.`);
+
+		try {
+			console.log("VendaID referente a operação fiscal: ", vendaId);
+			if (!vendaId) {
+				console.log("Não foi recebido o venda ID");
+				throw new Error("Não foi recebido venda ID para operação fiscal");
+			}
+
+			const certificadoAtivo = global.certificadoAtivo;
+			
+			if (!certificadoAtivo?.caminho || !certificadoAtivo?.senha) {
+				throw new Error("Certificado não definido.");
+			}
+
+			await mainFiscal(vendaId, certificadoAtivo);
+
+			return "Operação realizada com sucesso!";
+		} catch (error) {
+			console.log("ERRO: ", error);
+		}
 	} catch (err) {
 		await connection.query("ROLLBACK");
 		console.error("❌ Erro na venda:", err);

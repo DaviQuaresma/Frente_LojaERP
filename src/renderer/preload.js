@@ -14,4 +14,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	listarVendas: (filtros) => ipcRenderer.invoke("listar-vendas", filtros),
 	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
 	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
+	getP12: () => ipcRenderer.invoke("get-p12"),
+	selecionarCertificado: () => ipcRenderer.invoke("selecionar-certificado"),
+	definirCertificado: (dados) =>
+		ipcRenderer.invoke("definir-certificado", dados),
 });

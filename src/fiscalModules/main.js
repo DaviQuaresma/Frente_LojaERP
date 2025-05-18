@@ -1,33 +1,54 @@
 /** @format */
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const crypto = require("crypto");
 const extractFromPfx = require("./extractPfx");
 const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
 const enviarXmlParaSefaz = require("./sefazSend");
-const montarProcNFe = require("./montarProcNFe");
-const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
+const gerarChaveAcesso = require("../utils/gerarChaveAcesso");
 
-(async () => {
-	const pfxBuffer = fs.readFileSync("./certs/arquivoA1.p12");
-	const senha = "Fran!123";
+const {
+	getEmpresaData,
+	getVendaById,
+	getItensVendaByPedido,
+} = require("../utils/dbCommands");
 
-	const { privateKeyPem, certificatePem } = extractFromPfx(pfxBuffer, senha);
+const { getNewClient } = require("../db/getNewClient");
+
+module.exports = async function fiscalMain(vendaID, certificadoManual) {
+	const emp_codigo = 1;
+	const connection = await getNewClient();
+
+	// 📦 Coleta de dados
+	const empresa = await getEmpresaData(connection, emp_codigo);
+	const venda = await getVendaById(connection, vendaID);
+	const itens = await getItensVendaByPedido(connection, vendaID);
+	const { caminho, senha } = certificadoManual;
+
+	// 🔐 Leitura e extração do certificado
+	const pfxBuffer = fs.readFileSync(caminho);
+	const { privateKeyPem, certificatePem } = extractFromPfx(
+		pfxBuffer,
+		senha.trim()
+	);
+
+	// 🧠 Montagem do bloco IDE (identificação da NFe)
 	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
 
-	// DADOS PARA GERAR A CHAVE DE ACESSO
 	const ide = {
-		cUF: "25",
-		cNF: "85792078",
+		cUF: empresa.UF === "PB" ? "25" : "",
+		cNF: "85792078", // pode tornar dinâmico depois
 		natOp: "VENDA DE MERCADORIA",
 		mod: "65",
-		serie: "1",
-		nNF: "4390",
-		dhEmi: "2025-05-09T15:44:12-03:00",
+		serie: venda.ven_serie_dfe || "1", // fallback seguro
+		nNF: venda.ven_numero_dfe,
+		dhEmi: new Date(venda.ven_data_hora_finaliza || Date.now()).toISOString(),
 		tpNF: "1",
 		idDest: "1",
-		cMunFG: "2513901",
+		cMunFG: empresa.cMun || "2513901",
 		tpImp: "4",
 		tpEmis: "9",
 		tpAmb,
@@ -36,14 +57,15 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 		indPres: "1",
 		procEmi: "0",
 		verProc: "3.0.928.8245",
-		dhCont: "2025-05-09T15:44:12-03:00",
-		xJust: "NFC-e emitida em modo de Contingencia...",
+		dhCont: new Date().toISOString(),
+		xJust: "NFC-e emitida em modo de Contingência...",
 	};
 
+	// 🔐 Geração da chave de acesso
 	const chave = gerarChaveAcesso({
 		cUF: ide.cUF,
-		AAMM: "2505",
-		CNPJ: "24836327000166",
+		AAMM: "2505", // pode usar data dinâmica depois
+		CNPJ: empresa.CNPJ,
 		mod: ide.mod,
 		serie: ide.serie,
 		nNF: ide.nNF,
@@ -51,24 +73,62 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 		cNF: ide.cNF,
 	});
 
-	ide.cDV = chave.slice(-1);
+	ide.cDV = chave.slice(-1); // dígito verificador
 
-	const CSC_ID = "1";
-	const CSC_TOKEN = "AEE30B6E3824DE8F4F6533B05EB1CBBED82C4782";
-
-	const baseUrl =
-		tpAmb === "1"
-			? "http://www.sefaz.pb.gov.br/nfce"
-			: "http://www.sefaz.pb.gov.br/nfce";
-
-	const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${CSC_ID}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
+	// 🔗 Geração do QR Code
+	const baseUrl = "http://www.sefaz.pb.gov.br/nfce";
+	const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${empresa.cscId}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
 	const hash = crypto
-		.createHmac("sha1", CSC_TOKEN)
+		.createHmac("sha1", empresa.cscToken)
 		.update(qrCodeSemHash)
 		.digest("hex")
 		.toUpperCase();
 	const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
 
+	// 🧮 Processamento de itens
+	const produtosXml = [];
+	let vProd = 0,
+		vBC = 0,
+		vICMS = 0,
+		vIPI = 0,
+		vST = 0,
+		vTotTrib = 0;
+
+	for (const item of itens) {
+		const totalItem = parseFloat(item.ite_total || 0);
+		const valorUnit = parseFloat(item.ite_valor_unit || 0);
+		const qtd = parseFloat(item.ite_qtd || 1);
+		const icms = parseFloat(item.ite_vlr_icms || 0);
+		const bc = parseFloat(item.ite_bc_icms || 0);
+		const ipi = parseFloat(item.ite_vlr_ipi || 0);
+		const st = parseFloat(item.ite_vlr_icms_st || 0);
+
+		produtosXml.push({
+			cProd: item.pro_codigo.toString(),
+			cEAN: "SEM GTIN",
+			xProd: item.ite_descricao || "PRODUTO",
+			NCM: "00000000",
+			CFOP: item.ite_cfop || "5102",
+			uCom: item.ite_unidade || "UN",
+			qCom: qtd.toFixed(4),
+			vUnCom: valorUnit.toFixed(10),
+			vProd: totalItem.toFixed(2),
+			cEANTrib: "SEM GTIN",
+			uTrib: item.ite_unidade || "UN",
+			qTrib: qtd.toFixed(4),
+			vUnTrib: valorUnit.toFixed(10),
+			indTot: "1",
+		});
+
+		vProd += totalItem;
+		vBC += bc;
+		vICMS += icms;
+		vIPI += ipi;
+		vST += st;
+		vTotTrib += icms + ipi + st;
+	}
+
+	// 🧾 Montagem do objeto final para XML
 	const dados = {
 		chave,
 		suplementar: {
@@ -77,135 +137,134 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 		},
 		ide,
 		emit: {
-			CNPJ: "24836327000166",
-			xNome: "JANIO DUTRA DA SILVA",
-			xFant: "J D VARIEDADES",
+			CNPJ: empresa.CNPJ,
+			xNome: empresa.xNome,
+			xFant: empresa.xFant,
 			enderEmit: {
-				xLgr: "R FRANCISCO FELIX",
-				nro: "121",
-				xBairro: "SAO BENTINHO",
-				cMun: "2513901",
-				xMun: "SAO BENTO",
-				UF: "PB",
-				CEP: "58865000",
+				xLgr: empresa.xLgr,
+				nro: empresa.nro,
+				xBairro: empresa.xBairro,
+				cMun: empresa.cMun || "2513901",
+				xMun: empresa.xMun,
+				UF: empresa.UF,
+				CEP: empresa.CEP,
 				cPais: "1058",
 				xPais: "BRASIL",
-				fone: "83991180976",
+				fone: empresa.fone || "",
 			},
-			IE: "162740085",
+			IE: empresa.IE,
 			CRT: "3",
 		},
-		prod: {
-			cProd: "1",
-			cEAN: "SEM GTIN",
-			xProd:
-				"NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
-			NCM: "33049910",
-			CFOP: "5102",
-			uCom: "UN",
-			qCom: "1.0000",
-			vUnCom: "2.3300000000",
-			vProd: "2.33",
-			cEANTrib: "SEM GTIN",
-			uTrib: "UN",
-			qTrib: "1.0000",
-			vUnTrib: "2.3300000000",
-			indTot: "1",
-		},
+		prod: produtosXml[0], // simplificado (pode virar array depois)
 		imposto: {
-			vTotTrib: "1.19",
+			vTotTrib: vTotTrib.toFixed(2),
 			ICMS: {
 				orig: "0",
-				CST: "00",
+				CST: itens[0].ite_icms_cst || "00",
 				modBC: "3",
-				vBC: "2.33",
-				pICMS: "20.0000",
-				vICMS: "0.47",
+				vBC: vBC.toFixed(2),
+				pICMS:
+					Number(itens[0].ite_aliq_icms_efetiva) > 0
+						? Number(itens[0].ite_aliq_icms_efetiva).toFixed(4)
+						: "0.0000",
+				vICMS: vICMS.toFixed(2),
 			},
 			PIS: {
 				CST: "01",
-				vBC: "2.33",
+				vBC: vProd.toFixed(2),
 				pPIS: "1.6500",
 				vPIS: "0.04",
 			},
 			COFINS: {
 				CST: "01",
-				vBC: "2.33",
+				vBC: vProd.toFixed(2),
 				pCOFINS: "7.6000",
 				vCOFINS: "0.18",
 			},
 		},
+		// Trecho revisado da estrutura "dados.total" com parseFloat
 		total: {
-			vBC: "2.33",
-			vICMS: "0.47",
+			vBC: vBC.toFixed(2),
+			vICMS: vICMS.toFixed(2),
 			vICMSDeson: "0.00",
 			vFCP: "0.00",
 			vBCST: "0.00",
-			vST: "0.00",
+			vST: vST.toFixed(2),
 			vFCPST: "0.00",
 			vFCPSTRet: "0.00",
-			vProd: "2.33",
-			vFrete: "0.00",
+			vProd: vProd.toFixed(2),
+			vFrete: parseFloat(venda.ven_frete || 0).toFixed(2),
 			vSeg: "0.00",
-			vDesc: "0.00",
+			vDesc: parseFloat(venda.ven_desconto || 0).toFixed(2),
 			vII: "0.00",
-			vIPI: "0.00",
+			vIPI: vIPI.toFixed(2),
 			vIPIDevol: "0.00",
 			vPIS: "0.04",
 			vCOFINS: "0.18",
-			vOutro: "0.00",
-			vNF: "2.33",
-			vTotTrib: "1.19",
+			vOutro: parseFloat(venda.ven_outras_despesas || 0).toFixed(2),
+			vNF: parseFloat(venda.ven_total || 0).toFixed(2),
+			vTotTrib: vTotTrib.toFixed(2),
 		},
+
 		transp: {
-			modFrete: "9",
+			modFrete: venda.ven_tipo_frete?.toString() || "9",
 		},
 		pag: {
 			tPag: "01",
-			vPag: "2.33",
+			vPag: parseFloat(venda.ven_total || 0).toFixed(2),
 		},
 		infAdic: {
-			infCpl:
-				"Lei n 12.741/12: Voce pagou aproximadamente: R$ 0,60 de tributos federais...",
+			infCpl: venda.ven_obs || "",
 		},
 		infRespTec: {
-			CNPJ: "11918344000109",
-			xContato: "EDSON LUCIANO FURCIN",
-			email: "edson@domtec.com.br",
-			fone: "1436625005",
+			CNPJ: empresa.respCNPJ,
+			xContato: empresa.respNome,
+			email: empresa.respEmail,
+			fone: empresa.respFone,
 		},
 	};
+	
+	// 🖥️ Diretório da área de trabalho do usuário
+	const desktopDir = path.join(os.homedir(), "Desktop");
+	const pastaSaida = path.join(desktopDir, "NFeGeradas");
+	
+	// 📝 Caminhos dos arquivos
+	const timestamp = Date.now();
+	const xmlPath = path.join(pastaSaida, `xml-assinado-${vendaID}-${timestamp}.xml`);
+	const respPath = path.join(pastaSaida, `resposta-sefaz-${vendaID}-${timestamp}.xml`);
 
+	// 📂 Cria pasta se não existir
+	if (!fs.existsSync(pastaSaida)) {
+		fs.mkdirSync(pastaSaida, { recursive: true });
+	}
+
+	// 🧱 Geração do XML base
 	const xml = generateXml(dados).trim();
-	console.log("🔍 XML GERADO:\n", xml);
 
-	const assinado = assinarXml(
-		xml,
-		privateKeyPem,
-		certificatePem,
-		dados.chave
-	).trim();
-	const assinadoSemHeader = assinado.replace(/<\?xml.*?\?>/, "").trim();
+	// 🔐 Assinatura do XML
+	const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave);
 
-	const infNFeSupl = `
-	<infNFeSupl>
-		<qrCode>${dados.suplementar.qrCode}</qrCode>
-		<urlChave>${dados.suplementar.urlChave}</urlChave>
-	</infNFeSupl>`;
+	// 🧼 Limpeza do XML final
+	const conteudoFinal = assinado
+		.replace(/^\uFEFF/, "") // remove BOM (byte order mark)
+		.replace(/<\?xml.*?\?>/, "") // remove cabeçalho XML
+		.replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1") // isola o conteúdo real do NFe
+		.trim();
 
-	const assinadoComSupl = assinadoSemHeader;
+	// 💾 Salva XML assinado na área de trabalho
+	fs.writeFileSync(xmlPath, conteudoFinal, { encoding: "utf-8" });
+	console.log(`📄 XML assinado salvo em: ${xmlPath}`);
 
-	fs.writeFileSync("xml-assinado.xml", assinadoComSupl);
-	console.log("✅ XML assinado com sucesso e salvo como xml-assinado.xml");
-
+	// 📡 Envio para SEFAZ
 	const resposta = await enviarXmlParaSefaz(
-		assinadoComSupl,
+		conteudoFinal,
 		certificatePem,
 		privateKeyPem
 	);
 
-	fs.writeFileSync("resposta-sefaz.xml", resposta);
-	console.log("📨 Enviado para SEFAZ! Resposta salva em resposta-sefaz.xml");
+	// 💾 Salva resposta da SEFAZ
+	fs.writeFileSync(respPath, resposta, { encoding: "utf-8" });
+	console.log(`📨 Resposta salva em: ${respPath}`);
 
 	const match = resposta.match(/<nRec>(.*?)<\/nRec>/);
 	if (match) {
@@ -213,4 +272,4 @@ const gerarChaveAcesso = require("../utils/gerarChaveAcesso"); // IMPORTADO
 	} else {
 		console.log("⚠️ Nenhum recibo retornado. Verifique a resposta da SEFAZ.");
 	}
-})();
+};

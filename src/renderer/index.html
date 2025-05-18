@@ -13,7 +13,7 @@
 			rel="stylesheet" />
 	</head>
 	<body class="bg-light">
-		<div class="fw-lighter p-2">v1.4.16</div>
+		<div class="fw-lighter p-2">v2.0.0</div>
 		<div class="container py-5">
 			<h1
 				class="text-center mb-4"
@@ -206,6 +206,16 @@
 									📂 Selecionar Banco Ativo
 								</button>
 							</li>
+							<li class="nav-item">
+								<button
+									class="nav-link"
+									id="tab-certificado"
+									data-bs-toggle="pill"
+									data-bs-target="#abaCertificado"
+									type="button">
+									🔐 Certificado Fiscal
+								</button>
+							</li>
 						</ul>
 
 						<div
@@ -274,6 +284,7 @@
 											class="form-control"
 											placeholder="demonstracao" />
 									</div>
+
 									<div class="text-end">
 										<button
 											id="salvar-config-banco"
@@ -286,6 +297,63 @@
 										class="text-center fw-bold mt-3"></div>
 								</div>
 							</div>
+
+							<!-- Aba Certificado Fiscal -->
+							<div
+								class="tab-pane fade"
+								id="abaCertificado">
+								<div
+									class="mx-auto"
+									style="max-width: 500px">
+									<div class="mb-3">
+										<label
+											for="cfg-certificado"
+											class="form-label">
+											Selecionar Certificado A1 (.p12)
+										</label>
+										<div class="input-group">
+											<input
+												id="cfg-certificado"
+												class="form-control"
+												type="text"
+												placeholder="C:/certificados/nome.p12"
+												readonly />
+											<button
+												id="btnSelecionarCertificado"
+												class="btn btn-outline-secondary"
+												type="button">
+												Buscar...
+											</button>
+										</div>
+									</div>
+
+									<div class="mb-3">
+										<label
+											for="cfg-cert-senha"
+											class="form-label">
+											Senha do Certificado
+										</label>
+										<input
+											id="cfg-cert-senha"
+											class="form-control"
+											type="password"
+											placeholder="Digite a senha do .p12" />
+									</div>
+
+									<div class="text-end">
+										<button
+											id="salvar-config-certificado"
+											class="btn btn-primary w-100">
+											Salvar Certificado
+										</button>
+									</div>
+
+									<div
+										id="certStatus"
+										class="text-center fw-bold mt-3"></div>
+								</div>
+							</div>
+
 							<!-- Aba Selecionar Banco Ativo -->
 							<div
 								class="tab-pane fade"

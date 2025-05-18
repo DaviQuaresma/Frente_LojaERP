@@ -287,6 +287,125 @@ async function checkRequiredColumns(connection) {
 	}
 }
 
+async function getEmpresaData(connection, emp_codigo) {
+	const { rows } = await connection.query(
+		`
+		SELECT
+			emp_cnpj AS "CNPJ",
+			emp_nome AS "xNome",
+			emp_nomefantasia AS "xFant",
+			emp_inscricao AS "IE",
+			emp_uf AS "UF",
+			emp_cidade AS "xMun",
+			emp_cidade_ibge_rep AS "cMun",
+			emp_endereco AS "xLgr",
+			emp_numero AS "nro",
+			emp_bairro AS "xBairro",
+			emp_cep AS "CEP",
+			emp_telefone AS "fone",
+			emp_idcsc AS "cscId",
+			emp_csc AS "cscToken",
+			emp_rp_cnpj AS "respCNPJ",
+			emp_rp_contato AS "respNome",
+			emp_rp_email AS "respEmail",
+			emp_rp_fone AS "respFone"
+		FROM empresa
+		WHERE emp_codigo = $1
+		LIMIT 1
+		`,
+		[emp_codigo]
+	);
+
+	if (rows.length === 0) {
+		throw new Error(`Empresa com emp_codigo ${emp_codigo} não encontrada.`);
+	}
+
+	return rows[0];
+}
+
+async function getCertificadoData(connection, emp_codigo) {
+	const { rows } = await connection.query(
+		`
+		SELECT
+			cer_caminho AS "caminho",
+			cer_senha AS "senha"
+		FROM certificado
+		WHERE emp_codigo = $1 AND cer_ativo = 'Y'
+		ORDER BY cer_vencimento DESC
+		LIMIT 1
+		`,
+		[emp_codigo]
+	);
+
+	if (rows.length === 0) {
+		throw new Error(
+			`Certificado ativo para emp_codigo ${emp_codigo} não encontrado.`
+		);
+	}
+
+	return rows[0];
+}
+
+async function getVendaById(connection, ven_cod_pedido) {
+	const { rows } = await connection.query(
+		`
+		SELECT
+			ven_cod_pedido,
+			ven_total,
+			ven_desconto,
+			ven_frete,
+			ven_ipi,
+			ven_icms_st,
+			ven_outras_despesas,
+			ven_data_hora_finaliza,
+			ven_modelo_dfe,
+			ven_numero_dfe,
+			ven_serie_dfe,
+			ven_obs,
+			ven_tipo_frete
+		FROM vendas
+		WHERE ven_cod_pedido = $1
+		LIMIT 1
+		`,
+		[ven_cod_pedido]
+	);
+
+	if (rows.length === 0) {
+		throw new Error(
+			`Venda com ven_cod_pedido ${ven_cod_pedido} não encontrada.`
+		);
+	}
+
+	return rows[0];
+}
+
+async function getItensVendaByPedido(connection, ven_cod_pedido) {
+	const { rows } = await connection.query(
+		`
+		SELECT
+			ite_codigo,
+			pro_codigo,
+			ite_qtd,
+			ite_valor_unit,
+			ite_total,
+			ite_unidade,
+			ite_aliq_icms_efetiva,
+			ite_vlr_icms,
+			ite_icms_cst,
+			ite_bc_icms,
+			ite_vlr_ipi,
+			ite_vlr_icms_st,
+			ite_cfop,
+			ite_descricao
+		FROM itens_venda
+		WHERE ven_cod_pedido = $1
+		`,
+		[ven_cod_pedido]
+	);
+
+	return rows;
+}
+
 module.exports = {
 	updateStock,
 	insertSale,
@@ -297,4 +416,8 @@ module.exports = {
 	defineDefaultNFC,
 	createTriggerNf_number,
 	checkRequiredColumns,
+	getEmpresaData,
+	getCertificadoData,
+	getVendaById,
+	getItensVendaByPedido,
 };

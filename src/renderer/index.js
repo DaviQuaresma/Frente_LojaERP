@@ -22,17 +22,17 @@ async function atualizarTituloEmpresa() {
 		console.warn("⚠️ Erro ao atualizar nome da empresa:", e);
 	}
 }
-async function carregarBancosSalvos() {
-	const bancos = await window.electronAPI.listSavedDatabases();
-	bancoSelect.innerHTML = "";
+// async function carregarBancosSalvos() {
+// 	const bancos = await window.electronAPI.listSavedDatabases();
+// 	bancoSelect.innerHTML = "";
 
-	bancos.forEach((banco) => {
-		const option = document.createElement("option");
-		option.value = banco.database;
-		option.textContent = banco.database;
-		bancoSelect.appendChild(option);
-	});
-}
+// 	bancos.forEach((banco) => {
+// 		const option = document.createElement("option");
+// 		option.value = banco.database;
+// 		option.textContent = banco.database;
+// 		bancoSelect.appendChild(option);
+// 	});
+// }
 
 btnAtivarBanco.addEventListener("click", async () => {
 	const databaseSelecionado = bancoSelect.value;
@@ -357,6 +357,37 @@ if (filtroDirection) {
 	}
 })();
 
-window.addEventListener("DOMContentLoaded", () => {
-	carregarBancosSalvos(); // 👈 chama aqui!
-});
+document
+	.getElementById("btnSelecionarCertificado")
+	.addEventListener("click", async () => {
+		const caminho = await window.electronAPI.selecionarCertificado();
+		if (caminho) {
+			document.getElementById("cfg-certificado").value = caminho;
+		}
+	});
+
+document
+	.getElementById("salvar-config-certificado")
+	.addEventListener("click", async () => {
+		const caminho = document.getElementById("cfg-certificado").value;
+		const senha = document.getElementById("cfg-cert-senha").value;
+
+		if (!caminho || !senha) {
+			document.getElementById("certStatus").innerText =
+				"⚠️ Preencha caminho e senha.";
+			return;
+		}
+
+		const result = await window.electronAPI.definirCertificado({
+			caminho,
+			senha,
+		});
+
+		if (result.success) {
+			document.getElementById("certStatus").innerText =
+				"✅ Certificado salvo em memória com sucesso!";
+		} else {
+			document.getElementById("certStatus").innerText =
+				"❌ Erro ao salvar certificado.";
+		}
+	});
