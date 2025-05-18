@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	selecionarCertificado: () => ipcRenderer.invoke("selecionar-certificado"),
 	definirCertificado: (dados) =>
 		ipcRenderer.invoke("definir-certificado", dados),
+	getAmbienteAtual: () => ipcRenderer.invoke("getAmbienteAtual"),
+	setAmbiente: (valor) => ipcRenderer.invoke("setAmbiente", valor),
 });

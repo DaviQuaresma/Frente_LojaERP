@@ -2,9 +2,11 @@
 
 const axios = require("axios");
 const https = require("https");
+const { getAmbienteAtual } = require("../config/envControl");
+const ambiente = getAmbienteAtual();
 
 const urlSefaz =
-	process.env.NODE_ENV === "production"
+	ambiente === "production"
 		? "https://nfce.sefaz.pb.gov.br/NFCEe4/services/NfeAutorizacao4"
 		: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx";
 

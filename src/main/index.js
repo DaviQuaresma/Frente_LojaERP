@@ -4,6 +4,7 @@ const path = require("path");
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const fs = require("fs");
 const { Client } = require("pg");
+const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
 
 const {
 	salvarConfigBanco,
@@ -259,3 +260,6 @@ ipcMain.handle("buscar-produto", async (_, codigo) => {
 		return { rows: [], error: err.message };
 	}
 });
+
+ipcMain.handle("getAmbienteAtual", () => getAmbienteAtual());
+ipcMain.handle("setAmbiente", (_, valor) => setAmbiente(valor));

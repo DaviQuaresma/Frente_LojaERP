@@ -391,3 +391,28 @@ document
 				"❌ Erro ao salvar certificado.";
 		}
 	});
+
+document.addEventListener("DOMContentLoaded", async () => {
+	const label = document.getElementById("ambienteLabel");
+	const botao = document.getElementById("botaoAmbiente");
+
+	const ambiente = await window.electronAPI.getAmbienteAtual();
+
+	// Define texto e classe condicional
+	if (ambiente === "production") {
+		label.textContent = "Produção";
+		botao.classList.remove("btn-warning");
+		botao.classList.add("btn-success");
+	} else {
+		label.textContent = "Homologação";
+		botao.classList.remove("btn-success");
+		botao.classList.add("btn-warning");
+	}
+
+	// Troca de ambiente no clique
+	botao.addEventListener("click", async () => {
+		const novo = ambiente === "production" ? "development" : "production";
+		await window.electronAPI.setAmbiente(novo);
+		window.location.reload();
+	});
+});

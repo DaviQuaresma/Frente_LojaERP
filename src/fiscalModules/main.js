@@ -27,6 +27,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 	const venda = await getVendaById(connection, vendaID);
 	const itens = await getItensVendaByPedido(connection, vendaID);
 	const { caminho, senha } = certificadoManual;
+	const { getAmbienteAtual } = require("../config/envControl");
 
 	// 🔐 Leitura e extração do certificado
 	const pfxBuffer = fs.readFileSync(caminho);
@@ -36,7 +37,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 	);
 
 	// 🧠 Montagem do bloco IDE (identificação da NFe)
-	const tpAmb = process.env.NODE_ENV === "production" ? "1" : "2";
+	const ambiente = getAmbienteAtual();
+	const tpAmb = ambiente === "production" ? "1" : "2";
 
 	const ide = {
 		cUF: empresa.UF === "PB" ? "25" : "",
@@ -223,15 +225,21 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 			fone: empresa.respFone,
 		},
 	};
-	
+
 	// 🖥️ Diretório da área de trabalho do usuário
 	const desktopDir = path.join(os.homedir(), "Desktop");
 	const pastaSaida = path.join(desktopDir, "NFeGeradas");
-	
+
 	// 📝 Caminhos dos arquivos
 	const timestamp = Date.now();
-	const xmlPath = path.join(pastaSaida, `xml-assinado-${vendaID}-${timestamp}.xml`);
-	const respPath = path.join(pastaSaida, `resposta-sefaz-${vendaID}-${timestamp}.xml`);
+	const xmlPath = path.join(
+		pastaSaida,
+		`xml-assinado-${vendaID}-${timestamp}.xml`
+	);
+	const respPath = path.join(
+		pastaSaida,
+		`resposta-sefaz-${vendaID}-${timestamp}.xml`
+	);
 
 	// 📂 Cria pasta se não existir
 	if (!fs.existsSync(pastaSaida)) {

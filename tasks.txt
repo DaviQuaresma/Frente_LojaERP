@@ -1,0 +1,53 @@
+✅ Avaliação das Propostas
+1. Botão para alternar entre Produção e Homologação
+Viável: criar uma interface para mudar a process.env.NODE_ENV ou armazenar o valor atual em config.json.
+
+Implementação: botão com localStorage + reload ou gravação em arquivo settings.json que é lido na inicialização.
+
+Tempo estimado: 1 hora.
+
+2. Salvar conexões de banco já logadas
+Sugestão: criar um dbConnections.json com {nome, host, user, database, porta}.
+
+Exibir no frontend: um select com esses dados salvos + botão "Conectar rapidamente".
+
+Tempo estimado: 2 a 3 horas (com interface de gerenciamento).
+
+3. Retornar resposta da SEFAZ com venda
+Implementação: salvar resposta-sefaz junto com ID da venda, e exibir status no histórico.
+
+Planilha: montar um .xlsx com vendas falhadas usando xlsx ou exceljs.
+
+Tempo estimado: 3 a 4 horas.
+
+4. Proposta do serviço de repescagem em cloud
+Requisitos:
+
+Back-end Node em cloud (Railway, Render, Vercel Edge ou VPS).
+
+Crontask para rodar a cada 5/10 minutos.
+
+Endpoint local que responde as vendas com erro.
+
+Custo estimado:
+
+Desenvolvimento: ~8h (1 dia útil).
+
+Valor/hora médio: R$ 75,00.
+
+Custo total estimado: R$ 600,00
+
+Infraestrutura: pode começar gratuito (ex: Render), mas ideal ter VPS com IP fixo e certificado.
+
+5. Atualizar nome do banco conectado dinamicamente
+Viável: após getConfig() com .database, injetar no título da aba ou no topo da UI.
+
+Tempo estimado: 30 minutos.
+
+6. Exibir status do certificado e banco
+Certificado: se caminho e senha foram definidos e válidos → ✅.
+
+Banco: se conexão ativa válida → ✅.
+
+Tempo estimado: 1 hora com indicadores visuais (🟢 Banco conectado, 🔒 Certificado OK).
+
