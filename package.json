@@ -7,6 +7,7 @@
     "test": "npx jest",
     "index": "node ./tests/index.js",
     "start": "electron ./src/main/",
+    "postbuild": "node postbuild.js",
     "build": "npx electron-builder"
   },
   "repository": {

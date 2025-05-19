@@ -1,16 +1,10 @@
 /** @format */
 
 const { Client } = require("pg");
-const fs = require("fs");
-const path = require("path");
-
-const settingsPath = path.join(__dirname, "../config/db_settings.json");
+const { getDatabaseConfig } = require("../config/dbControl");
 
 function carregarBancoAtivo() {
-	if (!fs.existsSync(settingsPath))
-		throw new Error("Arquivo db_settings.json não encontrado");
-
-	const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+	const settings = getDatabaseConfig();
 
 	if (!settings.ativo || !settings.salvos || !settings.salvos[settings.ativo]) {
 		throw new Error("Banco de dados ativo não está definido corretamente.");
@@ -27,10 +21,12 @@ async function getNewClient() {
 }
 
 function getNomeBancoAtivo() {
-	if (!fs.existsSync(settingsPath)) return null;
-
-	const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-	return settings.ativo || null;
+	try {
+		const settings = getDatabaseConfig();
+		return settings.ativo || null;
+	} catch {
+		return null;
+	}
 }
 
 module.exports = {

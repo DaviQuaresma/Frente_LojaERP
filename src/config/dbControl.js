@@ -2,40 +2,51 @@
 
 const fs = require("fs");
 const path = require("path");
-const { app } = require("electron");
+const os = require("os");
 
-const settingsPath = path.join(app.getPath("userData"), "db_settings.json");
+// 🛡 Caminho persistente fora do .asar
+const appDataDir = path.join(
+	os.homedir(),
+	"AppData",
+	"Roaming",
+	"frentelojaerp",
+	"config"
+);
 
-// Se não existir, cria o arquivo base
-if (!fs.existsSync(settingsPath)) {
-	fs.writeFileSync(
-		settingsPath,
-		JSON.stringify({ salvos: {}, ativo: null }, null, 2)
-	);
-	console.log("📁 Arquivo db_settings.json criado em:", settingsPath);
+const settingsPath = path.join(appDataDir, "db_settings.json");
+
+// 🛠 Cria pasta e arquivo base se necessário
+function garantirArquivoConfig() {
+	if (!fs.existsSync(appDataDir)) {
+		fs.mkdirSync(appDataDir, { recursive: true });
+	}
+	if (!fs.existsSync(settingsPath)) {
+		const estruturaInicial = {
+			salvos: {},
+			ativo: null,
+		};
+		fs.writeFileSync(settingsPath, JSON.stringify(estruturaInicial, null, 2));
+		console.log("📁 db_settings.json criado no caminho:", settingsPath);
+	}
 }
 
-// Lê a config completa do arquivo
+// 🔍 Lê config completa do arquivo
 function getDatabaseConfig() {
+	garantirArquivoConfig(); // garante existência
 	const content = fs.readFileSync(settingsPath, "utf-8");
 	return JSON.parse(content);
 }
 
-// Atualiza a config com novos dados (sobrescreve tudo)
+// 💾 Atualiza config com novos dados
 function setDatabaseConfig(novaCfg) {
-	const settings = fs.existsSync(settingsPath)
-		? JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-		: { salvos: {}, ativo: null };
+	garantirArquivoConfig();
+	const atual = getDatabaseConfig();
 
-	if (novaCfg.salvos) {
-		settings.salvos = novaCfg.salvos;
-	}
-	if (novaCfg.ativo) {
-		settings.ativo = novaCfg.ativo;
-	}
+	if (novaCfg.salvos) atual.salvos = novaCfg.salvos;
+	if (novaCfg.ativo) atual.ativo = novaCfg.ativo;
 
-	fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-	console.log("✅ Configuração de banco salva:", settings);
+	fs.writeFileSync(settingsPath, JSON.stringify(atual, null, 2));
+	console.log("✅ Configuração de banco salva:", atual);
 }
 
 module.exports = {

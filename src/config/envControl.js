@@ -8,24 +8,41 @@ const settingsPath = path.join(app.getPath("userData"), "settings.json");
 
 // Retorna o ambiente atual (production | development)
 function getAmbienteAtual() {
-	if (!fs.existsSync(settingsPath)) {
+	try {
+		if (!fs.existsSync(settingsPath)) {
+			console.warn(
+				"⚠️ Arquivo settings.json não encontrado. Usando 'development' por padrão."
+			);
+			return "development";
+		}
+
+		const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+		return settings.NODE_ENV || "development";
+	} catch (err) {
+		console.error("❌ Erro ao ler o settings.json:", err.message);
 		return "development";
 	}
-
-	const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-	return settings.NODE_ENV || "development";
 }
 
 // Define e salva o novo ambiente
 function setAmbiente(novoValor) {
-	const settings = fs.existsSync(settingsPath)
-		? JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-		: {};
+	try {
+		let settings = {};
+		if (fs.existsSync(settingsPath)) {
+			settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+		} else {
+			console.log("📁 Criando settings.json em:", settingsPath);
+		}
 
-	settings.NODE_ENV = novoValor;
-
-	fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-	console.log(`🌍 Ambiente alterado para: ${novoValor}`);
+		settings.NODE_ENV = novoValor;
+		fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+		console.log(`🌍 Ambiente alterado para: ${novoValor}`);
+	} catch (err) {
+		console.error("❌ Erro ao salvar o settings.json:", err.message);
+	}
 }
 
-module.exports = { getAmbienteAtual, setAmbiente };
+module.exports = {
+	getAmbienteAtual,
+	setAmbiente,
+};

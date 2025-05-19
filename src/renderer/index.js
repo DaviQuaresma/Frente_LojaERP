@@ -384,15 +384,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 		await window.electronAPI.setDatabaseConfig(novoConfig);
 
-		// ⬇️ Atualiza o título dinamicamente
 		await atualizarTituloEmpresa();
 
 		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
 		ativacaoStatus.classList.add("text-success");
-
-		setTimeout(() => {
-			ativacaoStatus.textContent = "";
-			ativacaoStatus.classList.remove("text-success");
-		}, 4000);
 	});
 });
