@@ -2,8 +2,9 @@
 
 const fs = require("fs");
 const path = require("path");
+const { app } = require("electron");
 
-const settingsPath = path.join(__dirname, "db_settings.json");
+const settingsPath = path.join(app.getPath("userData"), "db_settings.json");
 
 // Se não existir, cria o arquivo base
 if (!fs.existsSync(settingsPath)) {
@@ -11,7 +12,7 @@ if (!fs.existsSync(settingsPath)) {
 		settingsPath,
 		JSON.stringify({ salvos: {}, ativo: null }, null, 2)
 	);
-	console.log("📁 Arquivo db_settings.json criado");
+	console.log("📁 Arquivo db_settings.json criado em:", settingsPath);
 }
 
 // Lê a config completa do arquivo
@@ -24,9 +25,8 @@ function getDatabaseConfig() {
 function setDatabaseConfig(novaCfg) {
 	const settings = fs.existsSync(settingsPath)
 		? JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
-		: { salvos: {} };
+		: { salvos: {}, ativo: null };
 
-	// Atualiza apenas o campo ativo OU os salvos
 	if (novaCfg.salvos) {
 		settings.salvos = novaCfg.salvos;
 	}

@@ -52,7 +52,7 @@ ipcMain.handle("selecionar-certificado", async () => {
 
 	const result = await dialog.showOpenDialog(win, {
 		title: "Selecionar Certificado A1",
-		filters: [{ name: "Certificados A1", extensions: ["p12"] }],
+		filters: [{ name: "Certificados A1", extensions: ["p12", "pfx"] }],
 		properties: ["openFile"],
 	});
 
