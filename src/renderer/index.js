@@ -324,27 +324,33 @@ document
 
 document
 	.getElementById("salvar-config-certificado")
-	?.addEventListener("click", async () => {
+	.addEventListener("click", async () => {
 		const caminho = document.getElementById("cfg-certificado").value;
 		const senha = document.getElementById("cfg-cert-senha").value;
+		const status = document.getElementById("certStatus");
+
+		status.textContent = "";
+		status.className = "text-center fw-bold mt-3";
 
 		if (!caminho || !senha) {
-			document.getElementById("certStatus").innerText =
-				"⚠️ Preencha caminho e senha.";
+			status.textContent = "⚠️ Preencha caminho e senha.";
+			status.classList.add("text-danger");
 			return;
 		}
 
-		const result = await window.electronAPI.definirCertificado({
+		const resultado = await window.electronAPI.definirCertificado({
 			caminho,
 			senha,
 		});
 
-		if (result.success) {
-			document.getElementById("certStatus").innerText =
-				"✅ Certificado salvo em memória com sucesso!";
+		if (resultado?.success) {
+			status.textContent = "✅ Certificado válido!";
+			status.classList.add("text-success");
 		} else {
-			document.getElementById("certStatus").innerText =
-				"❌ Erro ao salvar certificado.";
+			status.textContent = `❌ ${
+				resultado?.message || "Erro ao validar certificado."
+			}`;
+			status.classList.add("text-danger");
 		}
 	});
 

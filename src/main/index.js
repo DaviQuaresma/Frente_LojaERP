@@ -2,7 +2,6 @@
 
 const path = require("path");
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const fs = require("fs");
 const { Client } = require("pg");
 
 const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
@@ -11,6 +10,8 @@ const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { getNomeBancoAtivo } = require("../db/getNewClient");
+
+const { validarCertificado } = require("../utils/validadorPfx");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 
@@ -60,13 +61,25 @@ ipcMain.handle("selecionar-certificado", async () => {
 	return result.filePaths[0];
 });
 
-ipcMain.handle("definir-certificado", (_event, dados) => {
-	global.certificadoAtivo = {
-		caminho: dados.caminho,
-		senha: dados.senha,
-	};
-	console.log("✅ Certificado definido:", global.certificadoAtivo);
-	return { success: true };
+ipcMain.handle("definir-certificado", async (_event, dados) => {
+	try {
+		const info = await validarCertificado(dados.caminho, dados.senha);
+
+		global.certificadoAtivo = {
+			caminho: dados.caminho,
+			senha: dados.senha,
+		};
+
+		console.log(
+			"✅ Certificado definido com sucesso:",
+			global.certificadoAtivo
+		);
+		return { success: true, ...info }; // retorna sucesso e possíveis metadados
+	} catch (err) {
+		console.error("❌ Erro ao validar certificado:", err.message || err);
+		// ⛔️ Retorna erro para o renderer (sem throw aqui!)
+		return { success: false, message: err.message || "Erro desconhecido" };
+	}
 });
 
 // 🔌 Banco

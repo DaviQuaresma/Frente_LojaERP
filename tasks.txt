@@ -26,11 +26,6 @@ Custo total estimado: R$ 600,00
 
 Infraestrutura: pode começar gratuito (ex: Render), mas ideal ter VPS com IP fixo e certificado.
 
-5. Atualizar nome do banco conectado dinamicamente
-Viável: após getConfig() com .database, injetar no título da aba ou no topo da UI.
-
-Tempo estimado: 30 minutos.
-
 6. Exibir status do certificado e banco
 Certificado: se caminho e senha foram definidos e válidos → ✅.
 
