@@ -1,29 +1,37 @@
 /** @format */
 
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, shell } = require("electron");
+const path = require("path");
+const os = require("os");
+
 
 contextBridge.exposeInMainWorld("electronAPI", {
-	// 🔐 Certificado
-	getP12: () => ipcRenderer.invoke("get-p12"),
-	selecionarCertificado: () => ipcRenderer.invoke("selecionar-certificado"),
-	definirCertificado: (dados) =>
-		ipcRenderer.invoke("definir-certificado", dados),
+  // 🔐 Certificado
+  getP12: () => ipcRenderer.invoke("get-p12"),
+  selecionarCertificado: () => ipcRenderer.invoke("selecionar-certificado"),
+  definirCertificado: (dados) =>
+    ipcRenderer.invoke("definir-certificado", dados),
 
-	// 🌐 Ambiente
-	getAmbienteAtual: () => ipcRenderer.invoke("getAmbienteAtual"),
-	setAmbiente: (valor) => ipcRenderer.invoke("setAmbiente", valor),
+  // 🌐 Ambiente
+  getAmbienteAtual: () => ipcRenderer.invoke("getAmbienteAtual"),
+  setAmbiente: (valor) => ipcRenderer.invoke("setAmbiente", valor),
 
-	// 🔌 Banco
-	salvarConfigBanco: (cfg) => ipcRenderer.invoke("salvar-config-banco", cfg),
-	getDatabaseConfig: () => ipcRenderer.invoke("getDatabaseConfig"),
-	setDatabaseConfig: (cfg) => ipcRenderer.invoke("setDatabaseConfig", cfg),
-	getNomeBancoAtivo: () => ipcRenderer.invoke("get-nome-banco-ativo"),
+  // 🔌 Banco
+  salvarConfigBanco: (cfg) => ipcRenderer.invoke("salvar-config-banco", cfg),
+  getDatabaseConfig: () => ipcRenderer.invoke("getDatabaseConfig"),
+  setDatabaseConfig: (cfg) => ipcRenderer.invoke("setDatabaseConfig", cfg),
+  getNomeBancoAtivo: () => ipcRenderer.invoke("get-nome-banco-ativo"),
 
-	// 🛒 Vendas
-	criarVenda: (valor) => ipcRenderer.invoke("criar-venda", valor),
-	listarVendas: (filtros) => ipcRenderer.invoke("listar-vendas", filtros),
+  // 🛒 Vendas
+  criarVenda: (valor) => ipcRenderer.invoke("criar-venda", valor),
+  listarVendas: (filtros) => ipcRenderer.invoke("listar-vendas", filtros),
 
-	// 🔎 Produtos e Empresa
-	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
-	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
+  // 🔎 Produtos e Empresa
+  buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
+  getEmpresa: () => ipcRenderer.invoke("get-empresa"),
+
+  abrirPastaXml: () => {
+    const pasta = path.join(os.homedir(), "Desktop", "NFeGeradas");
+    return shell.openPath(pasta);
+  },
 });
