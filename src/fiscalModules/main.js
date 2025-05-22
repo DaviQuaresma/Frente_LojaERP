@@ -230,6 +230,11 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 	const desktopDir = path.join(os.homedir(), "Desktop");
 	const pastaSaida = path.join(desktopDir, "NFeGeradas");
 
+	// 📂 Cria pasta se não existir
+	if (!fs.existsSync(pastaSaida)) {
+		fs.mkdirSync(pastaSaida, { recursive: true });
+	}
+
 	// 📝 Caminhos dos arquivos
 	const timestamp = Date.now();
 	const xmlPath = path.join(
@@ -240,11 +245,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 		pastaSaida,
 		`resposta-sefaz-${vendaID}-${timestamp}.xml`
 	);
-
-	// 📂 Cria pasta se não existir
-	if (!fs.existsSync(pastaSaida)) {
-		fs.mkdirSync(pastaSaida, { recursive: true });
-	}
 
 	// 🧱 Geração do XML base
 	const xml = generateXml(dados).trim();
