@@ -1,7 +1,7 @@
 /** @format */
 
 const fs = require("fs");
-const os = require("os");
+const { app } = require("electron");
 const path = require("path");
 const crypto = require("crypto");
 const extractFromPfx = require("./extractPfx");
@@ -45,7 +45,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 		cNF: "85792078", // pode tornar dinâmico depois
 		natOp: "VENDA DE MERCADORIA",
 		mod: "65",
-		serie: venda.ven_serie_dfe || "1", // fallback seguro
+		serie: venda.ven_serie_nfe || "1", // fallback seguro
 		nNF: venda.ven_numero_dfe,
 		dhEmi: new Date(venda.ven_data_hora_finaliza || Date.now()).toISOString(),
 		tpNF: "1",
@@ -227,7 +227,9 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 	};
 
 	// 🖥️ Diretório da área de trabalho do usuário
-	const desktopDir = path.join(os.homedir(), "Desktop");
+	// const desktopDir = path.join(os.homedir(), "Desktop");
+
+	const desktopDir = app.getPath("desktop");
 	const pastaSaida = path.join(desktopDir, "NFeGeradas");
 
 	// 📂 Cria pasta se não existir

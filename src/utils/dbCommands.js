@@ -16,7 +16,7 @@ async function insertSale(
 		ven_modelo_dfe, ven_dfe, ven_modelo_nfe,
 		ven_frete, ven_ipi, ven_icms_st, ven_mov_estoque, emp_codigo,
 		ven_tipo_frete, tp_codigo, tx_codigo, co_codigo, faturado,
-		ven_tipo_venda, ser_total
+		ven_tipo_venda, ser_total, ven_serie_nfe
 	) VALUES (
 		TO_DATE(TO_CHAR(NOW(), 'DD/MM/YYYY'), 'DD/MM/YYYY'),
 		$1, 1, 2, 14, $2, $3,
@@ -24,7 +24,7 @@ async function insertSale(
 		$4, 0.0, 1, NOW(),
 		'65', 6, '65',
 		0.0, 0.0, 0.0, 'P', 1,
-		0, 1, 1, 9, 'Y', 'P', 0
+		0, 1, 1, 9, 'Y', 'P', 0, 1
 	)
 	RETURNING ven_cod_pedido;
 	`;
