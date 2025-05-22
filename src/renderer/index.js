@@ -11,12 +11,99 @@ let paginaAtual = 1;
 const limitePorPagina = 10;
 let produtosSemEstoque = [];
 
-document.getElementById("botaoAbrirXML").disabled = false;
-document.getElementById("botaoAbrirXML").classList.remove("btn-secondary");
-document.getElementById("botaoAbrirXML").classList.add("btn-success");
+// 🔁 XMLs - Inicialização
+const tabelaXmls = document.getElementById("tabelaXmls");
+const checkAllXmls = document.getElementById("checkAllXmls");
+const btnBaixar = document.getElementById("baixarSelecionados");
+const btnExcluir = document.getElementById("excluirSelecionados");
+const btnExcluirTodos = document.getElementById("excluirTodos");
 
-document.getElementById("botaoAbrirXML").addEventListener("click", () => {
-	window.electronAPI.abrirPastaXml();
+// Chama carregarXmls ao clicar na aba XMLs Geradas
+document.querySelector("#xml-tab")?.addEventListener("click", carregarXmls);
+
+function atualizarBotoesXml() {
+  const selecionados = document.querySelectorAll(".check-xml:checked");
+  const algumMarcado = selecionados.length > 0;
+  btnBaixar.disabled = !algumMarcado;
+  btnExcluir.disabled = !algumMarcado;
+}
+
+function renderizarXmls(xmls) {
+  if (!xmls.length) {
+    tabelaXmls.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center">Nenhum XML encontrado.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tabelaXmls.innerHTML = xmls
+    .map((xml) => {
+      const data = new Date(xml.data).toLocaleString("pt-BR");
+      const tamanhoKB = (xml.tamanho / 1024).toFixed(1) + " KB";
+      return `
+        <tr>
+          <td><input type="checkbox" class="check-xml" value="${xml.nome}" /></td>
+          <td>${xml.nome}</td>
+          <td>${tamanhoKB}</td>
+          <td>${data}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger btnExcluirUnico" data-nome="${xml.nome}">
+              Excluir
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  document.querySelectorAll(".check-xml").forEach((el) => {
+    el.addEventListener("change", atualizarBotoesXml);
+  });
+
+  document.querySelectorAll(".btnExcluirUnico").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const nome = btn.dataset.nome;
+      await window.electronAPI.excluirXmls([nome]);
+      await carregarXmls();
+    });
+  });
+}
+
+async function carregarXmls() {
+  const lista = await window.electronAPI.listarXmls();
+  renderizarXmls(lista);
+  checkAllXmls.checked = false;
+  atualizarBotoesXml();
+}
+
+checkAllXmls?.addEventListener("change", () => {
+  const marcar = checkAllXmls.checked;
+  document.querySelectorAll(".check-xml").forEach((el) => {
+    el.checked = marcar;
+  });
+  atualizarBotoesXml();
+});
+
+btnBaixar?.addEventListener("click", async () => {
+  const arquivos = Array.from(
+    document.querySelectorAll(".check-xml:checked")
+  ).map((el) => el.value);
+  await window.electronAPI.baixarXmls(arquivos);
+});
+
+btnExcluir?.addEventListener("click", async () => {
+  const arquivos = Array.from(
+    document.querySelectorAll(".check-xml:checked")
+  ).map((el) => el.value);
+  await window.electronAPI.excluirXmls(arquivos);
+  await carregarXmls();
+});
+
+btnExcluirTodos?.addEventListener("click", async () => {
+  await window.electronAPI.excluirTodosXmls();
+  await carregarXmls();
 });
 
 // Atualiza nome da empresa no topo

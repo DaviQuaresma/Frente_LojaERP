@@ -226,15 +226,12 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 		},
 	};
 
-	// 🖥️ Diretório da área de trabalho do usuário
-	// const desktopDir = path.join(os.homedir(), "Desktop");
+	// 📂 Diretório xmls_geradas dentro do userData
+	const pastaSaida = path.join(app.getPath("userData"), "xmls_geradas");
 
-	const desktopDir = app.getPath("desktop");
-	const pastaSaida = path.join(desktopDir, "NFeGeradas");
-
-	// 📂 Cria pasta se não existir
 	if (!fs.existsSync(pastaSaida)) {
 		fs.mkdirSync(pastaSaida, { recursive: true });
+		console.log(`📁 Pasta de XMLs criada: ${pastaSaida}`);
 	}
 
 	// 📝 Caminhos dos arquivos

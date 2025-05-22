@@ -1,9 +1,6 @@
 /** @format */
 
-const { contextBridge, ipcRenderer, shell } = require("electron");
-const path = require("path");
-const os = require("os");
-
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   // 🔐 Certificado
@@ -30,8 +27,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
   getEmpresa: () => ipcRenderer.invoke("get-empresa"),
 
-  abrirPastaXml: () => {
-    const pasta = path.join(os.homedir(), "Desktop", "NFeGeradas");
-    return shell.openPath(pasta);
-  },
+  // 📋 XMLs Geradas
+  listarXmls: () => ipcRenderer.invoke("listar-xmls"),
+  baixarXmls: (arquivos) => ipcRenderer.invoke("baixar-xmls", arquivos),
+  excluirXmls: (arquivos) => ipcRenderer.invoke("excluir-xmls", arquivos),
+  excluirTodosXmls: () => ipcRenderer.invoke("excluir-todos-xmls"),
 });

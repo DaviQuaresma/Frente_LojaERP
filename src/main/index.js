@@ -3,6 +3,8 @@
 const path = require("path");
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const { Client } = require("pg");
+const fs = require('fs');
+const os = require('os');
 
 const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
@@ -41,6 +43,83 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });
+
+// 📂 Caminho central para XMLs
+const pastaXmls = path.join(app.getPath("userData"), "xmls_geradas");
+
+// 🛠 Cria a pasta, se não existir
+function garantirPastaXmls() {
+  if (!fs.existsSync(pastaXmls)) {
+    fs.mkdirSync(pastaXmls, { recursive: true });
+    console.log(`📁 Pasta de XMLs criada: ${pastaXmls}`);
+  }
+}
+
+// 📃 Lista arquivos XMLs gerados
+function listarArquivosXml() {
+  garantirPastaXmls();
+
+  return fs.readdirSync(pastaXmls).map((nome) => {
+    const fullPath = path.join(pastaXmls, nome);
+    const stats = fs.statSync(fullPath);
+    return {
+      nome,
+      tamanho: stats.size,
+      data: stats.mtime.toISOString(),
+    };
+  });
+}
+
+// 📥 Baixar XMLs selecionados
+ipcMain.handle("baixar-xmls", async (_, arquivos) => {
+  garantirPastaXmls();
+
+  const destino = await dialog.showOpenDialog({
+    properties: ["openDirectory"],
+  });
+
+  if (destino.canceled || !destino.filePaths.length) return false;
+
+  for (const nome of arquivos) {
+    const origem = path.join(pastaXmls, nome);
+    const destinoFinal = path.join(destino.filePaths[0], nome);
+    if (fs.existsSync(origem)) {
+      fs.copyFileSync(origem, destinoFinal);
+    }
+  }
+  return true;
+});
+
+// ❌ Excluir XMLs selecionados
+ipcMain.handle("excluir-xmls", (_, arquivos) => {
+  garantirPastaXmls();
+
+  for (const nome of arquivos) {
+    const fullPath = path.join(pastaXmls, nome);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+    }
+  }
+  return true;
+});
+
+// ❌ Excluir todos os XMLs
+ipcMain.handle("excluir-todos-xmls", () => {
+  garantirPastaXmls();
+
+  const arquivos = fs.readdirSync(pastaXmls);
+  for (const nome of arquivos) {
+    const fullPath = path.join(pastaXmls, nome);
+    fs.unlinkSync(fullPath);
+  }
+  return true;
+});
+
+// 📤 Listar XMLs
+ipcMain.handle("listar-xmls", () => {
+  return listarArquivosXml();
+});
+
 
 // 🌐 Ambiente
 ipcMain.handle("getAmbienteAtual", () => getAmbienteAtual());
