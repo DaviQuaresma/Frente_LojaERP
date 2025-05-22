@@ -14,6 +14,18 @@ const { validarCertificado } = require("../utils/validadorPfx");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 
+async function createXmlTable(connection) {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS xmls_gerados (
+      id SERIAL PRIMARY KEY,
+      nome VARCHAR(255) NOT NULL,
+      data_geracao TIMESTAMP NOT NULL DEFAULT NOW(),
+      tamanho INTEGER,
+      conteudo TEXT NOT NULL
+    );
+  `);
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
@@ -44,6 +56,8 @@ app.on("window-all-closed", () => {
 // 📤 Listar XMLs do banco
 ipcMain.handle("listar-xmls", async () => {
   const connection = await getNewClient();
+  await createXmlTable(connection);
+
   const result = await connection.query(`
     SELECT id, nome, tamanho, data_geracao AS data
     FROM xmls_gerados
@@ -60,6 +74,7 @@ ipcMain.handle("listar-xmls", async () => {
 // 📥 Baixar XMLs selecionados (busca do banco e salva onde o usuário escolher)
 ipcMain.handle("baixar-xmls", async (_, arquivos) => {
   const connection = await getNewClient();
+  await createXmlTable(connection);
 
   const destino = await dialog.showOpenDialog({
     properties: ["openDirectory"],
@@ -86,6 +101,7 @@ ipcMain.handle("baixar-xmls", async (_, arquivos) => {
 // ❌ Excluir XMLs selecionados do banco
 ipcMain.handle("excluir-xmls", async (_, arquivos) => {
   const connection = await getNewClient();
+  await createXmlTable(connection);
 
   for (const nome of arquivos) {
     await connection.query(`DELETE FROM xmls_gerados WHERE nome = $1`, [nome]);
@@ -97,6 +113,8 @@ ipcMain.handle("excluir-xmls", async (_, arquivos) => {
 // ❌ Excluir todos os XMLs do banco
 ipcMain.handle("excluir-todos-xmls", async () => {
   const connection = await getNewClient();
+  await createXmlTable(connection);
+
   await connection.query(`DELETE FROM xmls_gerados`);
   return true;
 });
