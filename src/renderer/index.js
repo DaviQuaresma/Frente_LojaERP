@@ -90,7 +90,21 @@ btnBaixar?.addEventListener("click", async () => {
   const arquivos = Array.from(
     document.querySelectorAll(".check-xml:checked")
   ).map((el) => el.value);
-  await window.electronAPI.baixarXmls(arquivos);
+
+  const sucesso = await window.electronAPI.baixarXmls(arquivos);
+
+  const status =
+    document.getElementById("statusXml") || document.createElement("div");
+  status.id = "statusXml";
+  status.className = "text-center fw-bold mt-3";
+  status.textContent = sucesso
+    ? "✅ XMLs baixados com sucesso!"
+    : "❌ Erro ao baixar XMLs.";
+  status.classList.add(sucesso ? "text-success" : "text-danger");
+
+  tabelaXmls.parentElement.appendChild(status);
+
+  setTimeout(() => status.remove(), 4000);
 });
 
 btnExcluir?.addEventListener("click", async () => {
