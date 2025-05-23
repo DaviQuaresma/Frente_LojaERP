@@ -25,37 +25,37 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
   const logFilePath = path.join(desktopPath, "log.txt");
 
   if (!fs.existsSync(logFilePath)) {
-    fs.writeFileSync(logFilePath, "=== Log de Vendas ===\n\n", "utf-8");
+    fs.writeFileSync(logFilePath, "=== Log de Vendas ===\n\n\n\n", "utf-8");
   }
 
   try {
-    fs.appendFileSync(logFilePath, `VendaID: ${vendaID}\n\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `VendaID: ${vendaID}\n\n\n\n`, "utf-8");
     fs.appendFileSync(
       logFilePath,
-      `Certificado: ${JSON.stringify(certificadoManual)}\n\n`,
+      `Certificado: ${JSON.stringify(certificadoManual)}\n\n\n\n`,
       "utf-8"
     );
 
     // 📦 Coleta de dados
-    fs.appendFileSync(logFilePath, `Iniciando coleta de dados...\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `Iniciando coleta de dados...\n\n`, "utf-8");
     const connection = await getNewClient();
-    fs.appendFileSync(logFilePath, `Conexão com banco obtida.\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `Conexão com banco obtida.\n\n`, "utf-8");
     const empresa = await getEmpresaData(connection, emp_codigo);
     fs.appendFileSync(
       logFilePath,
-      `Empresa: ${JSON.stringify(empresa)}\n`,
+      `Empresa: ${JSON.stringify(empresa)}\n\n`,
       "utf-8"
     );
     const venda = await getVendaById(connection, vendaID);
     fs.appendFileSync(
       logFilePath,
-      `Venda: ${JSON.stringify(venda)}\n`,
+      `Venda: ${JSON.stringify(venda)}\n\n`,
       "utf-8"
     );
     const itens = await getItensVendaByPedido(connection, vendaID);
     fs.appendFileSync(
       logFilePath,
-      `Itens: ${JSON.stringify(itens)}\n`,
+      `Itens: ${JSON.stringify(itens)}\n\n`,
       "utf-8"
     );
     const { caminho, senha } = certificadoManual;
@@ -64,24 +64,27 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     // 🔐 Leitura e extração do certificado
     fs.appendFileSync(
       logFilePath,
-      `Lendo certificado em: ${caminho}\n`,
+      `Lendo certificado em: ${caminho}\n\n`,
       "utf-8"
     );
     const pfxBuffer = fs.readFileSync(caminho);
     fs.appendFileSync(
       logFilePath,
-      `Certificado lido. Extraindo chaves...\n`,
+      `Certificado lido. Extraindo chaves...\n\n`,
       "utf-8"
     );
     const { privateKeyPem, certificatePem } = extractFromPfx(
       pfxBuffer,
       senha.trim()
     );
-    fs.appendFileSync(logFilePath, `Chaves extraídas.\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `Chaves extraídas.\n\n`, "utf-8");
 
     // 🧠 Montagem do bloco IDE (identificação da NFe)
     const ambiente = getAmbienteAtual();
     const tpAmb = ambiente === "production" ? "1" : "2";
+
+    fs.appendFileSync(logFilePath, `Ambiente indentificado.\n\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `Ambiente indentificad como ${ambiente}.\n\n`, "utf-8");
 
     const ide = {
       cUF: empresa.UF === "PB" ? "25" : "",
@@ -106,6 +109,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       xJust: "NFC-e emitida em modo de Contingência...",
     };
 
+    fs.appendFileSync(logFilePath, `IDE ${JSON.stringify(ide)}.\n\n`, "utf-8");
+
     // 🔐 Geração da chave de acesso
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
@@ -118,6 +123,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       cNF: ide.cNF,
     });
 
+    fs.appendFileSync(logFilePath, `Chave ${JSON.stringify(chave)}.\n\n`, "utf-8");
+
     ide.cDV = chave.slice(-1); // dígito verificador
 
     // 🔗 Geração do QR Code
@@ -129,6 +136,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       .digest("hex")
       .toUpperCase();
     const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
+
+    fs.appendFileSync(logFilePath, `QrCode final ${JSON.stringify(qrCodeFinal)}.\n\n`, "utf-8");
 
     // 🧮 Processamento de itens
     const produtosXml = [];
@@ -172,6 +181,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       vST += st;
       vTotTrib += icms + ipi + st;
     }
+
+    fs.appendFileSync(logFilePath, `Produtos XML ${JSON.stringify(produtosXml)}.\n\n`, "utf-8");
 
     // 🧾 Montagem do objeto final para XML
     const dados = {
@@ -269,6 +280,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       },
     };
 
+    fs.appendFileSync(logFilePath, `Dados XML ${JSON.stringify(dados)}.\n\n`, "utf-8");
+
     // Cria a tabela no banco (caso ainda não exista)
     await createXmlTable(connection);
 
@@ -278,7 +291,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     if (xml.length > 100) {
       fs.appendFileSync(
         logFilePath,
-        `XML gerado: ${xml.split(0, 100)}\n\n`,
+        `XML gerado: ${xml.split(0, 100)}\n\n\n\n`,
         "utf-8"
       );
     }
@@ -294,7 +307,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     if (assinado.length > 100) {
       fs.appendFileSync(
         logFilePath,
-        `XML assinado: ${assinado.split(0, 100)}\n\n`,
+        `XML assinado: ${assinado.split(0, 100)}\n\n\n\n`,
         "utf-8"
       );
     }
@@ -309,7 +322,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     if (conteudoFinal.length > 100) {
       fs.appendFileSync(
         logFilePath,
-        `ConteudoFinal: ${conteudoFinal.split(0, 100)}\n\n`,
+        `ConteudoFinal: ${conteudoFinal.split(0, 100)}\n\n\n\n`,
         "utf-8"
       );
     }
@@ -320,7 +333,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     fs.appendFileSync(
       logFilePath,
-      `Arquivo criado: ${nomeArquivo}\n\n`,
+      `Arquivo criado: ${nomeArquivo}\n\n\n\n`,
       "utf-8"
     );
 
@@ -335,7 +348,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     fs.appendFileSync(
       logFilePath,
-      `Xml inserido no banco: ${nomeArquivo}\n\n`,
+      `Xml inserido no banco: ${nomeArquivo}\n\n\n\n`,
       "utf-8"
     );
 
@@ -348,7 +361,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     fs.appendFileSync(
       logFilePath,
-      `Resposta sefaz: ${resposta.split(0, 100)}\n\n`,
+      `Resposta sefaz: ${resposta.split(0, 100)}\n\n\n\n`,
       "utf-8"
     );
 
@@ -362,7 +375,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
   } catch (e) {
     fs.appendFileSync(
       logFilePath,
-      `ERRO: ${e.stack || e.message}\n\n`,
+      `ERRO: ${e.stack || e.message}\n\n\n\n`,
       "utf-8"
     );
     throw e;
