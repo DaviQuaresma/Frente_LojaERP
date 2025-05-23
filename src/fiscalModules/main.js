@@ -23,6 +23,20 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
   const emp_codigo = 1;
   const connection = await getNewClient();
 
+  const desktopPath = app.getPath("desktop");
+  const logFilePath = path.join(desktopPath, "log.txt");
+
+  if (!fs.existsSync(logFilePath)) {
+    fs.writeFileSync(logFilePath, "=== Log de Vendas ===\n\n", "utf-8");
+  }
+
+  fs.appendFileSync(logFilePath, `VendaID: ${vendaID}\n\n`, "utf-8");
+  fs.appendFileSync(
+    logFilePath,
+    `Certificado: ${JSON.stringify(certificadoManual)}\n\n`,
+    "utf-8"
+  );
+
   // 📦 Coleta de dados
   const empresa = await getEmpresaData(connection, emp_codigo);
   const venda = await getVendaById(connection, vendaID);
@@ -185,7 +199,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         vCOFINS: "0.18",
       },
     },
-    // Trecho revisado da estrutura "dados.total" com parseFloat
+
     total: {
       vBC: vBC.toFixed(2),
       vICMS: vICMS.toFixed(2),
@@ -233,8 +247,24 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
   // 🧱 Geração do XML base
   const xml = generateXml(dados).trim();
 
+  if (xml.length > 100) {
+    fs.appendFileSync(
+      logFilePath,
+      `XML gerado: ${xml.split(0, 100)}\n\n`,
+      "utf-8"
+    );
+  }
+
   // 🔐 Assinatura do XML
   const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave);
+
+  if (assinado.length > 100) {
+    fs.appendFileSync(
+      logFilePath,
+      `XML assinado: ${assinado.split(0, 100)}\n\n`,
+      "utf-8"
+    );
+  }
 
   // 🧼 Limpeza do XML final
   const conteudoFinal = assinado
@@ -243,9 +273,19 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     .replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1") // isola o conteúdo real do NFe
     .trim();
 
+  if (conteudoFinal.length > 100) {
+    fs.appendFileSync(
+      logFilePath,
+      `ConteudoFinal: ${conteudoFinal.split(0, 100)}\n\n`,
+      "utf-8"
+    );
+  }
+
   // 🗂️ Nome do arquivo lógico
   const timestamp = Date.now();
   const nomeArquivo = `xml-assinado-${vendaID}-${timestamp}.xml`;
+
+  fs.appendFileSync(logFilePath, `Arquivo criado: ${nomeArquivo}\n\n`, "utf-8");
 
   // 🛢️ Salva no banco de dados
   await connection.query(
@@ -256,13 +296,23 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     [nomeArquivo, Buffer.byteLength(conteudoFinal, "utf-8"), conteudoFinal]
   );
 
-  console.log(`🗄️ XML assinado inserido no banco como: ${nomeArquivo}`);
+  fs.appendFileSync(
+    logFilePath,
+    `Xml inserido no banco: ${nomeArquivo}\n\n`,
+    "utf-8"
+  );
 
   // 📡 Envio para SEFAZ
   const resposta = await enviarXmlParaSefaz(
     conteudoFinal,
     certificatePem,
     privateKeyPem
+  );
+
+  fs.appendFileSync(
+    logFilePath,
+    `Resposta sefaz: ${resposta.split(0, 100)}\n\n`,
+    "utf-8"
   );
 
   // 🔎 (Opcional: logar recibo ou salvar resposta no banco também)
