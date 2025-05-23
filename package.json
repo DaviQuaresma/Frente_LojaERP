@@ -1,7 +1,7 @@
 {
   "name": "frentelojaerp",
-  "version": "v2.3.1",
-  "description": "v2.3.1",
+  "version": "v2.3.13",
+  "description": "v2.3.13",
   "main": "./src/main/index.js",
   "scripts": {
     "test": "npx jest",
