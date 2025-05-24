@@ -9,6 +9,8 @@ const generateXml = require("./xmlGenerate");
 const assinarXml = require("./xmlSignature");
 const enviarXmlParaSefaz = require("./sefazSend");
 const gerarChaveAcesso = require("../utils/gerarChaveAcesso");
+const { getAmbienteAtual } = require("../config/envControl");
+const { getSefazInfo } = require("../utils/sefazHelper");
 
 const {
   getEmpresaData,
@@ -71,8 +73,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       `Itens: ${JSON.stringify(itens)}\n\n`,
       "utf-8"
     );
+
     const { caminho, senha } = certificadoManual;
-    const { getAmbienteAtual } = require("../config/envControl");
 
     // 🔐 Leitura e extração do certificado
     fs.appendFileSync(
@@ -80,21 +82,28 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       `Lendo certificado em: ${caminho}\n\n`,
       "utf-8"
     );
+
     const pfxBuffer = fs.readFileSync(caminho);
+
     fs.appendFileSync(
       logFilePath,
       `Certificado lido. Extraindo chaves...\n\n`,
       "utf-8"
     );
+
     const { privateKeyPem, certificatePem } = extractFromPfx(
       pfxBuffer,
       senha.trim()
     );
+
     fs.appendFileSync(logFilePath, `Chaves extraídas.\n\n`, "utf-8");
 
     // 🧠 Montagem do bloco IDE (identificação da NFe)
     const ambiente = getAmbienteAtual();
+
     const tpAmb = ambiente === "production" ? "1" : "2";
+
+    const sefazInfo = getSefazInfo(empresa.UF, ambiente);
 
     fs.appendFileSync(logFilePath, `Ambiente indentificado.\n\n`, "utf-8");
     fs.appendFileSync(logFilePath, `Ambiente indentificad como ${ambiente}.\n\n`, "utf-8");
@@ -141,7 +150,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     ide.cDV = chave.slice(-1); // dígito verificador
 
     // 🔗 Geração do QR Code
-    const baseUrl = "http://www.sefaz.pb.gov.br/nfce";
+    const baseUrl = sefazInfo.qrCode;
     const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${empresa.cscId}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
     const hash = crypto
       .createHmac("sha1", empresa.cscToken)
@@ -202,7 +211,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       chave,
       suplementar: {
         qrCode: qrCodeFinal,
-        urlChave: "www.sefaz.pb.gov.br/nfce/consulta",
+        urlChave: sefazInfo.qrCode,
       },
       ide,
       emit: {
@@ -304,7 +313,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     if (xml.length > 100) {
       fs.appendFileSync(
         logFilePath,
-        `XML gerado: ${xml.split(0, 100)}\n\n\n\n`,
+        `XML gerado: ${xml.substring(0, 100)}\n\n\n\n`,
         "utf-8"
       );
     }
@@ -320,7 +329,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     if (assinado.length > 100) {
       fs.appendFileSync(
         logFilePath,
-        `XML assinado: ${assinado.split(0, 100)}\n\n\n\n`,
+        `XML assinado: ${assinado.substring(0, 100)}\n\n\n\n`,
         "utf-8"
       );
     }
@@ -369,7 +378,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const resposta = await enviarXmlParaSefaz(
       conteudoFinal,
       certificatePem,
-      privateKeyPem
+      privateKeyPem,
+      empresa.UF
     );
 
     fs.appendFileSync(

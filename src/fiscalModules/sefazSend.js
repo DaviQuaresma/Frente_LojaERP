@@ -3,14 +3,15 @@
 const axios = require("axios");
 const https = require("https");
 const { getAmbienteAtual } = require("../config/envControl");
-const ambiente = getAmbienteAtual();
+const { getSefazInfo } = require("../utils/sefazHelper");
 
-const urlSefaz =
-	ambiente === "production"
-		? "https://nfce.sefaz.pb.gov.br/NFCEe4/services/NfeAutorizacao4"
-		: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx";
+async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufEmpresa) {
+	const ambiente = getAmbienteAtual();
+	const sefaz = getSefazInfo(ufEmpresa, ambiente);
+	const urlSefaz = sefaz.envio;
 
-async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada) {
+	console.log(`🔗 Enviando para SEFAZ na URL: ${urlSefaz}`);
+
 	const agent = new https.Agent({
 		cert: certificadoPem,
 		key: chavePrivada,
@@ -25,13 +26,13 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada) {
 
 	// Monta o envelope SOAP completo
 	const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-							<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-							<soap12:Body>
-								<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">
-								${enviNFeXml}
-								</nfeDadosMsg>
-							</soap12:Body>
-							</soap12:Envelope>`.trim();
+		<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+			<soap12:Body>
+				<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">
+					${enviNFeXml}
+				</nfeDadosMsg>
+			</soap12:Body>
+		</soap12:Envelope>`.trim();
 
 	// Envia para a SEFAZ
 	const response = await axios.post(urlSefaz, soapEnvelope, {
