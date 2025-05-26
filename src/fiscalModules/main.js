@@ -20,6 +20,7 @@ const {
 } = require("../utils/dbCommands");
 
 const { getNewClient } = require("../db/getNewClient");
+const testarDns = require("../utils/testarDns");
 
 function getCUF(uf) {
   const tabela = {
@@ -359,6 +360,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       "utf-8"
     );
 
+
     // 🛢️ Salva no banco de dados
     await connection.query(
       `
@@ -374,6 +376,14 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       "utf-8"
     );
 
+    // 🧪 Teste de DNS antes da transmissão
+    await new Promise((resolve) => {
+      testarDns((resultado) => {
+        fs.appendFileSync(logFilePath, `📡 Resultado teste DNS:\n${resultado}\n`, "utf-8");
+        resolve();
+      });
+    });
+
     // 📡 Envio para SEFAZ
     const resposta = await enviarXmlParaSefaz(
       conteudoFinal,
@@ -384,7 +394,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     fs.appendFileSync(
       logFilePath,
-      `Resposta sefaz: ${resposta.split(0, 100)}\n\n\n\n`,
+      `Resposta sefaz: ${resposta.substring(0, 100)}\n\n\n\n`,
       "utf-8"
     );
 
