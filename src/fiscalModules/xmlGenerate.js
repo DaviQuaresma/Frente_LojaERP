@@ -153,16 +153,24 @@ module.exports = function gerarXmlNfe(dados) {
 	detPag.ele("vPag").txt(dados.pag.vPag);
 
 	// infAdic
-	const infAdic = infNFe.ele("infAdic");
-	infAdic.ele("infCpl").txt(dados.infAdic.infCpl);
+	if (dados.infAdic?.infCpl?.trim()) {
+		const infAdic = infNFe.ele("infAdic");
+		infAdic.ele("infCpl").txt(dados.infAdic.infCpl.trim());
+	}
 
 	// infRespTec
 	const respTec = infNFe.ele("infRespTec");
+
 	respTec
 		.ele("CNPJ").txt(dados.infRespTec.CNPJ).up()
 		.ele("xContato").txt(dados.infRespTec.xContato).up()
-		.ele("email").txt(dados.infRespTec.email).up()
-		.ele("fone").txt(dados.infRespTec.fone).up();
+		.ele("email").txt(dados.infRespTec.email).up();
+
+	// só inclui <fone> se for válido (com pelo menos 10 dígitos)
+	const foneLimpo = (dados.infRespTec.fone || "").replace(/\D/g, "");
+	if (foneLimpo.length >= 10) {
+		respTec.ele("fone").txt(foneLimpo);
+	}
 
 	return doc.doc().end({ headless: false, prettyPrint: false });
 };

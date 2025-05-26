@@ -206,14 +206,25 @@ ipcMain.handle("get-nome-banco-ativo", () => {
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
   try {
     console.log("📅 Valor recebido no handler:", valorAlvo);
-    await createSale(parseFloat(valorAlvo));
+
+    const resultado = await createSale(parseFloat(valorAlvo));
+
+    if (!resultado?.success) {
+      throw new Error(resultado?.erro || "Erro ao gerar a venda fiscal");
+    }
+
     console.log("✅ Finalizou createSale");
     return { success: true, message: "Venda criada com sucesso!" };
+
   } catch (err) {
     console.error("❌ Erro ao criar venda:", err);
-    return { success: false, message: err.message || "Erro desconhecido" };
+    return {
+      success: false,
+      message: err.message || "Erro desconhecido ao criar venda",
+    };
   }
 });
+
 
 // 📜 Histórico
 ipcMain.handle(

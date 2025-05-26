@@ -11,6 +11,7 @@ const enviarXmlParaSefaz = require("./sefazSend");
 const gerarChaveAcesso = require("../utils/gerarChaveAcesso");
 const { getAmbienteAtual } = require("../config/envControl");
 const { getSefazInfo } = require("../utils/sefazHelper");
+const getDataHoraFormatoSefaz = require("../utils/getDataHoraSefaz");
 
 const {
   getEmpresaData,
@@ -20,7 +21,6 @@ const {
 } = require("../utils/dbCommands");
 
 const { getNewClient } = require("../db/getNewClient");
-const testarDns = require("../utils/testarDns");
 
 function getCUF(uf) {
   const tabela = {
@@ -52,71 +52,30 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       "utf-8"
     );
 
-    // 📦 Coleta de dados
-    fs.appendFileSync(logFilePath, `Iniciando coleta de dados...\n\n`, "utf-8");
     const connection = await getNewClient();
-    fs.appendFileSync(logFilePath, `Conexão com banco obtida.\n\n`, "utf-8");
     const empresa = await getEmpresaData(connection, emp_codigo);
-    fs.appendFileSync(
-      logFilePath,
-      `Empresa: ${JSON.stringify(empresa)}\n\n`,
-      "utf-8"
-    );
     const venda = await getVendaById(connection, vendaID);
-    fs.appendFileSync(
-      logFilePath,
-      `Venda: ${JSON.stringify(venda)}\n\n`,
-      "utf-8"
-    );
     const itens = await getItensVendaByPedido(connection, vendaID);
-    fs.appendFileSync(
-      logFilePath,
-      `Itens: ${JSON.stringify(itens)}\n\n`,
-      "utf-8"
-    );
 
     const { caminho, senha } = certificadoManual;
-
-    // 🔐 Leitura e extração do certificado
-    fs.appendFileSync(
-      logFilePath,
-      `Lendo certificado em: ${caminho}\n\n`,
-      "utf-8"
-    );
-
     const pfxBuffer = fs.readFileSync(caminho);
-
-    fs.appendFileSync(
-      logFilePath,
-      `Certificado lido. Extraindo chaves...\n\n`,
-      "utf-8"
-    );
-
     const { privateKeyPem, certificatePem } = extractFromPfx(
       pfxBuffer,
       senha.trim()
     );
 
-    fs.appendFileSync(logFilePath, `Chaves extraídas.\n\n`, "utf-8");
-
-    // 🧠 Montagem do bloco IDE (identificação da NFe)
     const ambiente = getAmbienteAtual();
-
     const tpAmb = ambiente === "production" ? "1" : "2";
-
     const sefazInfo = getSefazInfo(empresa.UF, ambiente);
-
-    fs.appendFileSync(logFilePath, `Ambiente indentificado.\n\n`, "utf-8");
-    fs.appendFileSync(logFilePath, `Ambiente indentificad como ${ambiente}.\n\n`, "utf-8");
 
     const ide = {
       cUF: getCUF(empresa.UF),
-      cNF: "85792078", // pode tornar dinâmico depois
+      cNF: "85792078",
       natOp: "VENDA DE MERCADORIA",
       mod: "65",
-      serie: venda.ven_serie_nfe || "1", // fallback seguro
+      serie: venda.ven_serie_nfe || "1",
       nNF: venda.ven_numero_dfe,
-      dhEmi: new Date(venda.ven_data_hora_finaliza || Date.now()).toISOString(),
+      dhEmi: getDataHoraFormatoSefaz(new Date(venda.ven_data_hora_finaliza || Date.now())),
       tpNF: "1",
       idDest: "1",
       cMunFG: empresa.cMun || "2513901",
@@ -128,16 +87,13 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       indPres: "1",
       procEmi: "0",
       verProc: "3.0.928.8245",
-      dhCont: new Date().toISOString(),
+      dhCont: getDataHoraFormatoSefaz(new Date()),
       xJust: "NFC-e emitida em modo de Contingência...",
     };
 
-    fs.appendFileSync(logFilePath, `IDE ${JSON.stringify(ide)}.\n\n`, "utf-8");
-
-    // 🔐 Geração da chave de acesso
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
-      AAMM: "2505", // pode usar data dinâmica depois
+      AAMM: "2505",
       CNPJ: empresa.CNPJ,
       mod: ide.mod,
       serie: ide.serie,
@@ -146,30 +102,15 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       cNF: ide.cNF,
     });
 
-    fs.appendFileSync(logFilePath, `Chave ${JSON.stringify(chave)}.\n\n`, "utf-8");
+    ide.cDV = chave.slice(-1);
 
-    ide.cDV = chave.slice(-1); // dígito verificador
-
-    // 🔗 Geração do QR Code
     const baseUrl = sefazInfo.qrCode;
     const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${empresa.cscId}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
-    const hash = crypto
-      .createHmac("sha1", empresa.cscToken)
-      .update(qrCodeSemHash)
-      .digest("hex")
-      .toUpperCase();
+    const hash = crypto.createHmac("sha1", empresa.cscToken).update(qrCodeSemHash).digest("hex").toUpperCase();
     const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
 
-    fs.appendFileSync(logFilePath, `QrCode final ${JSON.stringify(qrCodeFinal)}.\n\n`, "utf-8");
-
-    // 🧮 Processamento de itens
     const produtosXml = [];
-    let vProd = 0,
-      vBC = 0,
-      vICMS = 0,
-      vIPI = 0,
-      vST = 0,
-      vTotTrib = 0;
+    let vProd = 0, vBC = 0, vICMS = 0, vIPI = 0, vST = 0, vTotTrib = 0;
 
     for (const item of itens) {
       const totalItem = parseFloat(item.ite_total || 0);
@@ -184,7 +125,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         cProd: item.pro_codigo.toString(),
         cEAN: "SEM GTIN",
         xProd: item.ite_descricao || "PRODUTO",
-        NCM: "00000000",
+        NCM: item.pro_codigo_fiscal || "00000000",
         CFOP: item.ite_cfop || "5102",
         uCom: item.ite_unidade || "UN",
         qCom: qtd.toFixed(4),
@@ -205,9 +146,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       vTotTrib += icms + ipi + st;
     }
 
-    fs.appendFileSync(logFilePath, `Produtos XML ${JSON.stringify(produtosXml)}.\n\n`, "utf-8");
+    const obsLimpa = (venda.ven_obs || "").trim();
 
-    // 🧾 Montagem do objeto final para XML
     const dados = {
       chave,
       suplementar: {
@@ -226,15 +166,15 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           cMun: empresa.cMun || "2513901",
           xMun: empresa.xMun,
           UF: empresa.UF,
-          CEP: empresa.CEP,
+          CEP: String(empresa.CEP || "").replace(/\D/g, "").padStart(8, "0"),
           cPais: "1058",
           xPais: "BRASIL",
-          fone: empresa.fone || "",
+          ...(empresa.fone ? { fone: String(empresa.fone).replace(/\D/g, "").padStart(10, "0") } : {}),
         },
         IE: empresa.IE,
         CRT: "3",
       },
-      prod: produtosXml[0], // simplificado (pode virar array depois)
+      prod: produtosXml[0],
       imposto: {
         vTotTrib: vTotTrib.toFixed(2),
         ICMS: {
@@ -242,10 +182,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           CST: itens[0].ite_icms_cst || "00",
           modBC: "3",
           vBC: vBC.toFixed(2),
-          pICMS:
-            Number(itens[0].ite_aliq_icms_efetiva) > 0
-              ? Number(itens[0].ite_aliq_icms_efetiva).toFixed(4)
-              : "0.0000",
+          pICMS: Number(itens[0].ite_aliq_icms_efetiva) > 0 ? Number(itens[0].ite_aliq_icms_efetiva).toFixed(4) : "0.0000",
           vICMS: vICMS.toFixed(2),
         },
         PIS: {
@@ -261,7 +198,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           vCOFINS: "0.18",
         },
       },
-
       total: {
         vBC: vBC.toFixed(2),
         vICMS: vICMS.toFixed(2),
@@ -284,7 +220,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         vNF: parseFloat(venda.ven_total || 0).toFixed(2),
         vTotTrib: vTotTrib.toFixed(2),
       },
-
       transp: {
         modFrete: venda.ven_tipo_frete?.toString() || "9",
       },
@@ -292,9 +227,13 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         tPag: "01",
         vPag: parseFloat(venda.ven_total || 0).toFixed(2),
       },
-      infAdic: {
-        infCpl: venda.ven_obs || "",
-      },
+      ...(obsLimpa
+        ? {
+          infAdic: {
+            infCpl: obsLimpa,
+          },
+        }
+        : {}),
       infRespTec: {
         CNPJ: empresa.respCNPJ,
         xContato: empresa.respNome,
@@ -303,114 +242,59 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       },
     };
 
-    fs.appendFileSync(logFilePath, `Dados XML ${JSON.stringify(dados)}.\n\n`, "utf-8");
-
-    // Cria a tabela no banco (caso ainda não exista)
     await createXmlTable(connection);
-
-    // 🧱 Geração do XML base
     const xml = generateXml(dados).trim();
-
-    if (xml.length > 100) {
-      fs.appendFileSync(
-        logFilePath,
-        `XML gerado: ${xml.substring(0, 100)}\n\n\n\n`,
-        "utf-8"
-      );
-    }
-
-    // 🔐 Assinatura do XML
-    const assinado = assinarXml(
-      xml,
-      privateKeyPem,
-      certificatePem,
-      dados.chave
-    );
-
-    if (assinado.length > 100) {
-      fs.appendFileSync(
-        logFilePath,
-        `XML assinado: ${assinado.substring(0, 100)}\n\n\n\n`,
-        "utf-8"
-      );
-    }
-
-    // 🧼 Limpeza do XML final
+    const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave);
     const conteudoFinal = assinado
-      .replace(/^\uFEFF/, "") // remove BOM (byte order mark)
-      .replace(/<\?xml.*?\?>/, "") // remove cabeçalho XML
-      .replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1") // isola o conteúdo real do NFe
+      .replace(/^\uFEFF/, "")
+      .replace(/<\?xml.*?\?>/, "")
+      .replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1")
       .trim();
 
-    if (conteudoFinal.length > 100) {
-      fs.appendFileSync(
-        logFilePath,
-        `ConteudoFinal: ${conteudoFinal.split(0, 100)}\n\n\n\n`,
-        "utf-8"
-      );
-    }
-
-    // 🗂️ Nome do arquivo lógico
     const timestamp = Date.now();
     const nomeArquivo = `xml-assinado-${vendaID}-${timestamp}.xml`;
-
-    fs.appendFileSync(
-      logFilePath,
-      `Arquivo criado: ${nomeArquivo}\n\n\n\n`,
-      "utf-8"
-    );
-
-
-    // 🛢️ Salva no banco de dados
     await connection.query(
-      `
-  INSERT INTO xmls_gerados (nome, tamanho, conteudo)
-  VALUES ($1, $2, $3)
-`,
+      `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
       [nomeArquivo, Buffer.byteLength(conteudoFinal, "utf-8"), conteudoFinal]
     );
 
-    fs.appendFileSync(
-      logFilePath,
-      `Xml inserido no banco: ${nomeArquivo}\n\n\n\n`,
-      "utf-8"
-    );
+    const resposta = await enviarXmlParaSefaz(conteudoFinal, certificatePem, privateKeyPem, empresa.UF);
 
-    // 🧪 Teste de DNS antes da transmissão
-    await new Promise((resolve) => {
-      testarDns((resultado) => {
-        fs.appendFileSync(logFilePath, `📡 Resultado teste DNS:\n${resultado}\n`, "utf-8");
-        resolve();
-      });
-    });
-
-    // 📡 Envio para SEFAZ
-    const resposta = await enviarXmlParaSefaz(
-      conteudoFinal,
-      certificatePem,
-      privateKeyPem,
-      empresa.UF
-    );
-
-    fs.appendFileSync(
-      logFilePath,
-      `Resposta sefaz: ${resposta.substring(0, 100)}\n\n\n\n`,
-      "utf-8"
-    );
-
-    // 🔎 (Opcional: logar recibo ou salvar resposta no banco também)
-    const match = resposta.match(/<nRec>(.*?)<\/nRec>/);
-    if (match) {
-      console.log("📦 Recibo:", match[1]);
-    } else {
-      console.log("⚠️ Nenhum recibo retornado. Verifique a resposta da SEFAZ.");
+    if (!resposta || typeof resposta !== "string" || resposta.trim() === "") {
+      throw new Error("❌ Resposta da SEFAZ vazia ou inválida.");
     }
+
+    // Extração detalhada do retorno da SEFAZ
+    const matchRecibo = resposta.match(/<nRec>(.*?)<\/nRec>/);
+    const matchMotivo = resposta.match(/<xMotivo>(.*?)<\/xMotivo>/);
+    const matchStatus = resposta.match(/<cStat>(.*?)<\/cStat>/);
+
+    if (matchRecibo) {
+      console.log("📦 Recibo:", matchRecibo[1]);
+      fs.appendFileSync(logFilePath, `📦 Recibo retornado: ${matchRecibo[1]}\n\n\n\n`, "utf-8");
+    } else {
+      console.log("⚠️ Nenhum recibo retornado.");
+      fs.appendFileSync(logFilePath, `⚠️ Nenhum recibo retornado.\n`, "utf-8");
+
+      if (matchStatus && matchMotivo) {
+        console.log(`❌ Rejeição ${matchStatus[1]}: ${matchMotivo[1]}`);
+        fs.appendFileSync(
+          logFilePath,
+          `❌ Rejeição ${matchStatus[1]}: ${matchMotivo[1]}\n\n\n\n`,
+          "utf-8"
+        );
+      } else {
+        fs.appendFileSync(logFilePath, `❌ Retorno SEFAZ sem detalhes de erro.\n\n\n\n`, "utf-8");
+      }
+    }
+
+    return { sucesso: true };
   } catch (e) {
     fs.appendFileSync(
-      logFilePath,
+      path.join(app.getPath("desktop"), "log.txt"),
       `ERRO: ${e.stack || e.message}\n\n\n\n`,
       "utf-8"
     );
-    throw e;
+    return { sucesso: false, erro: e.stack || e.message };
   }
 };
