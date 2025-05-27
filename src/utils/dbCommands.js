@@ -308,7 +308,8 @@ async function getEmpresaData(connection, emp_codigo) {
 			emp_rp_cnpj AS "respCNPJ",
 			emp_rp_contato AS "respNome",
 			emp_rp_email AS "respEmail",
-			emp_rp_fone AS "respFone"
+			emp_rp_fone AS "respFone",
+			ci_numero AS "cMunFG"
 		FROM empresa
 		WHERE emp_codigo = $1
 		LIMIT 1

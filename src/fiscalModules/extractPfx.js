@@ -24,7 +24,7 @@ module.exports = function extractFromPfx(pfxBuffer, senha) {
 
 	if (!privateKey) throw new Error("❌ Chave privada não encontrada no .p12");
 
-	// Agora buscamos o certificado que tem o mesmo `n`
+	// Agora buscamos o certificado correspondente à chave
 	for (const safeContent of p12.safeContents) {
 		for (const safeBag of safeContent.safeBags) {
 			if (
@@ -44,6 +44,16 @@ module.exports = function extractFromPfx(pfxBuffer, senha) {
 
 	const privateKeyPem = forge.pki.privateKeyToPem(privateKey);
 	const certificatePem = forge.pki.certificateToPem(certificate);
+	const subject = certificate.subject.attributes;
 
-	return { privateKeyPem, certificatePem };
+	// Busca todos os CNPJs válidos nos atributos do certificado
+	const allCnpjs = subject
+		.map(attr => attr.value?.match(/\d{14}/))
+		.filter(Boolean)
+		.map(match => match[0]);
+
+	// Seleciona o último, que geralmente é o do titular do certificado
+	const cnpj = allCnpjs.length > 0 ? allCnpjs[allCnpjs.length - 1] : null;
+
+	return { privateKeyPem, certificatePem, subject, cnpj };
 };

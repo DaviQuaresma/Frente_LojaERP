@@ -54,19 +54,46 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     const connection = await getNewClient();
     const empresa = await getEmpresaData(connection, emp_codigo);
+    console.log("📦 Dados da empresa:", empresa);
+    console.table(empresa);
     const venda = await getVendaById(connection, vendaID);
     const itens = await getItensVendaByPedido(connection, vendaID);
 
     const { caminho, senha } = certificadoManual;
     const pfxBuffer = fs.readFileSync(caminho);
-    const { privateKeyPem, certificatePem } = extractFromPfx(
-      pfxBuffer,
-      senha.trim()
-    );
+
+    const { privateKeyPem, certificatePem, subject, cnpj } = extractFromPfx(pfxBuffer, senha.trim());
+
+    console.log("🔍 Certificado carregado com sucesso.");
+    console.log("🔍 Subject do certificado:", subject);
+    console.log("🔍 CNPJ extraído do certificado:", cnpj || "não encontrado");
+
+    const cnpjCertBase = cnpj?.substring(0, 8);
+    const cnpjEmitente = String(empresa.CNPJ).replace(/\D/g, "");
+    const cnpjEmitenteBase = cnpjEmitente.substring(0, 8);
+
+    console.log("🏢 CNPJ do certificado (base):", cnpjCertBase);
+    console.log("🏬 CNPJ do emitente (base):", cnpjEmitenteBase);
+
+    if (!cnpjCertBase || cnpjCertBase !== cnpjEmitenteBase) {
+      throw new Error(
+        `❌ CNPJ do certificado (${cnpjCertBase || "inválido"}) difere do CNPJ do emitente (${cnpjEmitenteBase})`
+      );
+    }
 
     const ambiente = getAmbienteAtual();
     const tpAmb = ambiente === "production" ? "1" : "2";
     const sefazInfo = getSefazInfo(empresa.UF, ambiente);
+
+    let xJust_field = ""
+
+    if (tpAmb === "1") {
+      xJust_field = ""
+    } else {
+      xJust_field = "NFC-e emitida em modo de Contingência..."
+    }
+
+    console.log("📍 Código do município (ci_numero):", empresa.cMunFG);
 
     const ide = {
       cUF: getCUF(empresa.UF),
@@ -78,7 +105,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       dhEmi: getDataHoraFormatoSefaz(new Date(venda.ven_data_hora_finaliza || Date.now())),
       tpNF: "1",
       idDest: "1",
-      cMunFG: empresa.cMun || "2513901",
+      cMunFG: empresa.cMunFG,
       tpImp: "4",
       tpEmis: "9",
       tpAmb,
@@ -88,7 +115,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       procEmi: "0",
       verProc: "3.0.928.8245",
       dhCont: getDataHoraFormatoSefaz(new Date()),
-      xJust: "NFC-e emitida em modo de Contingência...",
+      xJust: xJust_field,
     };
 
     const chave = gerarChaveAcesso({
@@ -147,8 +174,21 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     const obsLimpa = (venda.ven_obs || "").trim();
-    const foneLimpo = String(empresa.fone || "").replace(/\D/g, "");
-    const telefoneValido = foneLimpo.length >= 10 && foneLimpo.length <= 11;
+
+
+    const telefoneRaw =
+      empresa.emp_telefone ||
+      empresa.emp_rp_fone ||
+      empresa.emp_cont_telefone ||
+      empresa.emp_telefone1_rep ||
+      empresa.emp_telefone2_rep ||
+      "99 9999 9999";
+
+    const telefoneFormatado = telefoneRaw.replace(/\D/g, "");
+    const fone =
+      telefoneFormatado.length >= 10 && telefoneFormatado.length <= 11
+        ? telefoneFormatado
+        : undefined;
 
     const dados = {
       chave,
@@ -171,7 +211,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           CEP: String(empresa.CEP || "").replace(/\D/g, "").padStart(8, "0"),
           cPais: "1058",
           xPais: "BRASIL",
-          ...(telefoneValido ? { fone: foneLimpo } : {}),
+          ...(fone ? { fone } : {}),
         },
         IE: empresa.IE,
         CRT: "3",
