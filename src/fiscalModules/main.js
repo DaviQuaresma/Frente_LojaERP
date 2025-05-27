@@ -147,6 +147,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     const obsLimpa = (venda.ven_obs || "").trim();
+    const foneLimpo = String(empresa.fone || "").replace(/\D/g, "");
+    const telefoneValido = foneLimpo.length >= 10 && foneLimpo.length <= 11;
 
     const dados = {
       chave,
@@ -169,7 +171,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           CEP: String(empresa.CEP || "").replace(/\D/g, "").padStart(8, "0"),
           cPais: "1058",
           xPais: "BRASIL",
-          ...(empresa.fone ? { fone: String(empresa.fone).replace(/\D/g, "").padStart(10, "0") } : {}),
+          ...(telefoneValido ? { fone: foneLimpo } : {}),
         },
         IE: empresa.IE,
         CRT: "3",
@@ -244,7 +246,16 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     await createXmlTable(connection);
     const xml = generateXml(dados).trim();
-    const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave);
+
+
+    const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave)
+      .replace(/^\uFEFF/, "")                    // remove BOM
+      .replace(/<\?xml[^>]*\?>/, "")             // remove header XML
+      .replace(/>\s+</g, "><")                   // remove espaços/quebras entre tags
+      .replace(/[\r\n\t]/g, "")                  // remove qualquer tab, CR ou LF
+      .trim();
+
+
     const conteudoFinal = assinado
       .replace(/^\uFEFF/, "")
       .replace(/<\?xml.*?\?>/, "")
@@ -264,30 +275,38 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       throw new Error("❌ Resposta da SEFAZ vazia ou inválida.");
     }
 
-    // Extração detalhada do retorno da SEFAZ
     const matchRecibo = resposta.match(/<nRec>(.*?)<\/nRec>/);
     const matchMotivo = resposta.match(/<xMotivo>(.*?)<\/xMotivo>/);
     const matchStatus = resposta.match(/<cStat>(.*?)<\/cStat>/);
+    const matchProtocolo = resposta.match(/<protNFe.*?<\/protNFe>/s);
 
     if (matchRecibo) {
-      console.log("📦 Recibo:", matchRecibo[1]);
+      console.log("📦 Recibo retornado:", matchRecibo[1]);
       fs.appendFileSync(logFilePath, `📦 Recibo retornado: ${matchRecibo[1]}\n\n\n\n`, "utf-8");
     } else {
       console.log("⚠️ Nenhum recibo retornado.");
       fs.appendFileSync(logFilePath, `⚠️ Nenhum recibo retornado.\n`, "utf-8");
 
       if (matchStatus && matchMotivo) {
-        console.log(`❌ Rejeição ${matchStatus[1]}: ${matchMotivo[1]}`);
+        const status = matchStatus[1];
+        const motivo = matchMotivo[1];
+
+        console.log(`❌ Rejeição ${status}: ${motivo}`);
         fs.appendFileSync(
           logFilePath,
-          `❌ Rejeição ${matchStatus[1]}: ${matchMotivo[1]}\n\n\n\n`,
+          `❌ Rejeição ${status}: ${motivo}\n\n\n\n`,
           "utf-8"
         );
+
+        // Caso especial: Lote processado, mas talvez sem protocolo salvo
+        if (status === "104" && matchProtocolo) {
+          console.log("📄 Protocolo encontrado em lote processado.");
+          fs.appendFileSync(logFilePath, `📄 Protocolo extraído:\n${matchProtocolo[0]}\n\n\n\n`, "utf-8");
+        }
       } else {
         fs.appendFileSync(logFilePath, `❌ Retorno SEFAZ sem detalhes de erro.\n\n\n\n`, "utf-8");
       }
     }
-
     return { sucesso: true };
   } catch (e) {
     fs.appendFileSync(

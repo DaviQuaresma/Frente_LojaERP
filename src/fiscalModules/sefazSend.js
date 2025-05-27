@@ -44,12 +44,20 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufE
 	});
 
 	const xmlLimpo = xmlAssinado
-		.replace(/<\?xml.*?\?>/, "")
-		.replace(/[\r\n\t]/g, "")
-		.replace(/\s{2,}/g, " ")
+		.replace(/^\uFEFF/, "") // Remove BOM
+		.replace(/<\?xml[^>]*\?>/, "") // Remove cabeçalho XML
+		.replace(/[\r\n\t]/g, "") // Remove quebras de linha e tabulações
+		.replace(/>\s+</g, "><") // Remove espaços entre tags
 		.trim();
 
-	const enviNFeXml = `<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><idLote>000000000000001</idLote><indSinc>1</indSinc>${xmlLimpo}</enviNFe>`;
+	const idLote = String(Date.now()).padStart(15, "0"); // Ex: 000017171234567
+
+	const enviNFeXml =
+		`<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
+		`<idLote>${idLote}</idLote>` +
+		`<indSinc>1</indSinc>` +
+		xmlLimpo +
+		`</enviNFe>`;
 
 
 	const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
