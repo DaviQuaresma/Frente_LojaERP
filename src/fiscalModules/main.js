@@ -84,6 +84,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const ambiente = getAmbienteAtual();
     const tpAmb = ambiente === "production" ? "1" : "2";
     const sefazInfo = getSefazInfo(empresa.UF, ambiente);
+
+
     const tpEmis = "9"; // contingência offline
 
     const ide = {
@@ -104,14 +106,21 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       indFinal: "1",
       indPres: "1",
       procEmi: "0",
-      verProc: "3.0.928.8245",
+      verProc: "3.0.928.8245"
     };
 
-    // Só adiciona os campos de contingência se necessário
-    if (tpEmis === "9" && tpAmb !== "1") {
+    if (tpAmb === "2") {
       ide.dhCont = getDataHoraFormatoSefaz(new Date());
       ide.xJust = "NFC-e emitida em modo de Contingência...";
     }
+
+    fs.appendFileSync(
+      logFilePath,
+      `
+        dhCount: ${ide.dhCont}
+        xJust: ${ide.xJust}\n\n\n\n`,
+      "utf-8"
+    );
 
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
