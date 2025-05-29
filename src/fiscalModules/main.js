@@ -54,8 +54,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     const connection = await getNewClient();
     const empresa = await getEmpresaData(connection, emp_codigo);
-    console.log("📦 Dados da empresa:", empresa);
-    console.table(empresa);
     const venda = await getVendaById(connection, vendaID);
     const itens = await getItensVendaByPedido(connection, vendaID);
 
@@ -64,16 +62,9 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     const { privateKeyPem, certificatePem, subject, cnpj } = extractFromPfx(pfxBuffer, senha.trim());
 
-    console.log("🔍 Certificado carregado com sucesso.");
-    console.log("🔍 Subject do certificado:", subject);
-    console.log("🔍 CNPJ extraído do certificado:", cnpj || "não encontrado");
-
     const cnpjCertBase = cnpj?.substring(0, 8);
     const cnpjEmitente = String(empresa.CNPJ).replace(/\D/g, "");
     const cnpjEmitenteBase = cnpjEmitente.substring(0, 8);
-
-    console.log("🏢 CNPJ do certificado (base):", cnpjCertBase);
-    console.log("🏬 CNPJ do emitente (base):", cnpjEmitenteBase);
 
     if (!cnpjCertBase || cnpjCertBase !== cnpjEmitenteBase) {
       throw new Error(
@@ -82,8 +73,28 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     const ambiente = getAmbienteAtual();
-    const tpAmb = ambiente === "production" ? "1" : "2";
     const sefazInfo = getSefazInfo(empresa.UF, ambiente);
+
+    const tpAmb = ambiente === "production" ? "1" : "2"; // SEFAZ: 1 = produção, 2 = homologação
+    const tpEmis = "1"; // SEM contingência para qualquer ambiente
+
+    fs.appendFileSync(
+      logFilePath,
+      `Ambiente: ${ambiente}\n\n\n\n`,
+      "utf-8"
+    );
+
+    fs.appendFileSync(
+      logFilePath,
+      `tpAmb (SEFAZ): ${tpAmb}\n\n\n\n`,
+      "utf-8"
+    );
+
+    fs.appendFileSync(
+      logFilePath,
+      `tpEmis (tipo de emissão): ${tpEmis}\n\n\n\n`,
+      "utf-8"
+    );
 
     const ide = {
       cUF: getCUF(empresa.UF),
@@ -97,18 +108,15 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       idDest: "1",
       cMunFG: empresa.cMunFG,
       tpImp: "4",
-      tpEmis: "9",
+      tpEmis,
       tpAmb,
       finNFe: "1",
       indFinal: "1",
       indPres: "1",
       procEmi: "0",
-      verProc: "3.0.928.8245",
-      ...(tpAmb === "2" && {
-        dhCont: getDataHoraFormatoSefaz(new Date()),
-        xJust: "NFC-e emitida em modo de Contingência...",
-      }),
+      verProc: "3.0.928.8245"
     };
+
 
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
@@ -197,7 +205,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           xLgr: empresa.xLgr,
           nro: empresa.nro,
           xBairro: empresa.xBairro,
-          cMun: empresa.cMun || "2513901",
+          cMun: empresa.cMunFG,
           xMun: empresa.xMun,
           UF: empresa.UF,
           CEP: String(empresa.CEP || "").replace(/\D/g, "").padStart(8, "0"),
@@ -242,7 +250,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         vFCPST: "0.00",
         vFCPSTRet: "0.00",
         vProd: vProd.toFixed(2),
-        vFrete: parseFloat(venda.ven_frete || 0).toFixed(2),
+        vFrete: "0.00", // Frete não permitido na NFC-e
         vSeg: "0.00",
         vDesc: parseFloat(venda.ven_desconto || 0).toFixed(2),
         vII: "0.00",
@@ -255,7 +263,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         vTotTrib: vTotTrib.toFixed(2),
       },
       transp: {
-        modFrete: venda.ven_tipo_frete?.toString() || "9",
+        modFrete: "9",
       },
       pag: {
         tPag: "01",
