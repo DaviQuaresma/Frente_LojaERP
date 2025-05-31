@@ -12,6 +12,7 @@ const {
 	defineDefaultNFC,
 	createTriggerNf_number,
 	checkRequiredColumns,
+	createNfeProtocols
 } = require("../utils/dbCommands");
 
 const mainFiscal = require("../fiscalModules/main");
@@ -58,6 +59,9 @@ async function createSale(valorAlvo) {
 				END IF;
 			END $$;
 		`);
+
+		// 7. Criar tabela de nfc protocols
+		await createNfeProtocols(connection)
 
 		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 

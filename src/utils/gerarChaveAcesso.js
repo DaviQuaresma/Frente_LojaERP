@@ -10,16 +10,6 @@ module.exports = function gerarChaveAcesso({
 	tpEmis,
 	cNF,
 }) {
-	console.log("🔍 Dados para chave de acesso:", {
-		cUF,
-		AAMM,
-		CNPJ,
-		mod,
-		serie,
-		nNF,
-		tpEmis,
-		cNF,
-	});
 
 	// Validação básica de campos obrigatórios
 	const camposObrigatorios = { cUF, AAMM, CNPJ, mod, serie, nNF, tpEmis, cNF };

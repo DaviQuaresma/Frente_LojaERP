@@ -1,8 +1,6 @@
 /** @format */
 
 const { create } = require("xmlbuilder2");
-const { getAmbienteAtual } = require("../config/envControl");
-const { getSefazInfo } = require("../utils/sefazHelper");
 
 module.exports = function gerarXmlNfe(dados) {
 	const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("NFe", {
@@ -35,21 +33,12 @@ module.exports = function gerarXmlNfe(dados) {
 		ide.ele("indIntermed").txt(dados.ide.indIntermed).up();
 	}
 
-	ide
-		.ele("procEmi").txt(dados.ide.procEmi).up()
-		.ele("verProc").txt(dados.ide.verProc).up();
+	ide.ele("procEmi").txt(dados.ide.procEmi).up().ele("verProc").txt(dados.ide.verProc).up();
 
 	if (dados.ide.tpEmis === "9") {
-		ide
-			.ele("dhCont")
-			.txt(dados.ide.dhCont)
-			.up()
-			.ele("xJust")
-			.txt(dados.ide.xJust)
-			.up();
+		ide.ele("dhCont").txt(dados.ide.dhCont).up().ele("xJust").txt(dados.ide.xJust).up();
 	}
 
-	// emitente
 	const emit = infNFe.ele("emit");
 	emit
 		.ele("CNPJ").txt(dados.emit.CNPJ).up()
@@ -66,14 +55,11 @@ module.exports = function gerarXmlNfe(dados) {
 		.ele("UF").txt(dados.emit.enderEmit.UF).up()
 		.ele("CEP").txt(dados.emit.enderEmit.CEP).up()
 		.ele("cPais").txt(dados.emit.enderEmit.cPais).up()
-		.ele("xPais").txt(dados.emit.enderEmit.xPais).up()
-		.ele("fone").txt(dados.emit.enderEmit.fone).up();
+		.ele("xPais").txt(dados.emit.enderEmit.xPais).up();
 
 	emit.ele("IE").txt(dados.emit.IE).up().ele("CRT").txt(dados.emit.CRT).up();
 
-	// det (detalhes dos produtos)
 	const det = infNFe.ele("det", { nItem: "1" });
-
 	const prod = det.ele("prod");
 	prod
 		.ele("cProd").txt(dados.prod.cProd).up()
@@ -92,34 +78,63 @@ module.exports = function gerarXmlNfe(dados) {
 		.ele("indTot").txt(dados.prod.indTot).up();
 
 	const imposto = det.ele("imposto");
-	imposto.ele("vTotTrib").txt(dados.imposto.vTotTrib).up();
+	imposto.ele("vTotTrib").txt(dados.imposto?.vTotTrib || "0.00").up();
 
-	const icms = imposto.ele("ICMS").ele("ICMS00");
-	icms
-		.ele("orig").txt(dados.imposto.ICMS.orig).up()
-		.ele("CST").txt(dados.imposto.ICMS.CST).up()
-		.ele("modBC").txt(dados.imposto.ICMS.modBC).up()
-		.ele("vBC").txt(dados.imposto.ICMS.vBC).up()
-		.ele("pICMS").txt(dados.imposto.ICMS.pICMS).up()
-		.ele("vICMS").txt(dados.imposto.ICMS.vICMS).up();
+	const icmsData = dados.imposto?.ICMS || { orig: "0", CST: "00", modBC: "3", vBC: "0.00", pICMS: "0.00", vICMS: "0.00", CSOSN: "102" };
+	const pisData = dados.imposto?.PIS || { CST: "01", vBC: "0.00", pPIS: "0.00", vPIS: "0.00" };
+	const cofinsData = dados.imposto?.COFINS || { CST: "01", vBC: "0.00", pCOFINS: "0.00", vCOFINS: "0.00" };
 
-	const pis = imposto.ele("PIS").ele("PISAliq");
-	pis
-		.ele("CST").txt(dados.imposto.PIS.CST).up()
-		.ele("vBC").txt(dados.imposto.PIS.vBC).up()
-		.ele("pPIS").txt(dados.imposto.PIS.pPIS).up()
-		.ele("vPIS").txt(dados.imposto.PIS.vPIS).up();
+	const icms = imposto.ele("ICMS");
+	if (dados.emit.CRT === "1") {
+		const icmsSn = icms.ele("ICMSSN102");
+		icmsSn.ele("orig").txt(icmsData.orig).up();
+		icmsSn.ele("CSOSN").txt(icmsData.CSOSN).up();
+	} else {
+		const icms00 = icms.ele("ICMS00");
+		icms00
+			.ele("orig").txt(icmsData.orig).up()
+			.ele("CST").txt(icmsData.CST).up()
+			.ele("modBC").txt(icmsData.modBC).up()
+			.ele("vBC").txt(icmsData.vBC).up()
+			.ele("pICMS").txt(icmsData.pICMS).up()
+			.ele("vICMS").txt(icmsData.vICMS).up();
+	}
 
-	const cofins = imposto.ele("COFINS").ele("COFINSAliq");
-	cofins
-		.ele("CST").txt(dados.imposto.COFINS.CST).up()
-		.ele("vBC").txt(dados.imposto.COFINS.vBC).up()
-		.ele("pCOFINS").txt(dados.imposto.COFINS.pCOFINS).up()
-		.ele("vCOFINS").txt(dados.imposto.COFINS.vCOFINS).up();
+	const pis = imposto.ele("PIS");
+	if (pisData.CST === "99") {
+		const pisOutr = pis.ele("PISOutr");
+		pisOutr
+			.ele("CST").txt(pisData.CST).up()
+			.ele("vBC").txt(pisData.vBC).up()
+			.ele("pPIS").txt(pisData.pPIS).up()
+			.ele("vPIS").txt(pisData.vPIS).up();
+	} else {
+		const pisAliq = pis.ele("PISAliq");
+		pisAliq
+			.ele("CST").txt(pisData.CST).up()
+			.ele("vBC").txt(pisData.vBC).up()
+			.ele("pPIS").txt(pisData.pPIS).up()
+			.ele("vPIS").txt(pisData.vPIS).up();
+	}
 
-	// total
+	const cofins = imposto.ele("COFINS");
+	if (cofinsData.CST === "99") {
+		const cofOutr = cofins.ele("COFINSOutr");
+		cofOutr
+			.ele("CST").txt(cofinsData.CST).up()
+			.ele("vBC").txt(cofinsData.vBC).up()
+			.ele("pCOFINS").txt(cofinsData.pCOFINS).up()
+			.ele("vCOFINS").txt(cofinsData.vCOFINS).up();
+	} else {
+		const cofAliq = cofins.ele("COFINSAliq");
+		cofAliq
+			.ele("CST").txt(cofinsData.CST).up()
+			.ele("vBC").txt(cofinsData.vBC).up()
+			.ele("pCOFINS").txt(cofinsData.pCOFINS).up()
+			.ele("vCOFINS").txt(cofinsData.vCOFINS).up();
+	}
+
 	const total = infNFe.ele("total").ele("ICMSTot");
-
 	total
 		.ele("vBC").txt(dados.total.vBC).up()
 		.ele("vICMS").txt(dados.total.vICMS).up()
@@ -142,35 +157,29 @@ module.exports = function gerarXmlNfe(dados) {
 		.ele("vNF").txt(dados.total.vNF).up()
 		.ele("vTotTrib").txt(dados.total.vTotTrib).up();
 
-	// transp
 	const transp = infNFe.ele("transp");
 	transp.ele("modFrete").txt(dados.transp.modFrete).up();
 
-	// pag
 	const pag = infNFe.ele("pag");
 	const detPag = pag.ele("detPag");
 	detPag.ele("tPag").txt(dados.pag.tPag);
 	detPag.ele("vPag").txt(dados.pag.vPag);
 
-	// infAdic
 	if (dados.infAdic?.infCpl?.trim()) {
 		const infAdic = infNFe.ele("infAdic");
 		infAdic.ele("infCpl").txt(dados.infAdic.infCpl.trim());
 	}
 
-	// infRespTec
 	const respTec = infNFe.ele("infRespTec");
-
 	respTec
 		.ele("CNPJ").txt(dados.infRespTec.CNPJ).up()
 		.ele("xContato").txt(dados.infRespTec.xContato).up()
 		.ele("email").txt(dados.infRespTec.email).up();
 
-	// só inclui <fone> se for válido (com pelo menos 10 dígitos)
 	const foneLimpo = (dados.infRespTec.fone || "").replace(/\D/g, "");
 	if (foneLimpo.length >= 10) {
 		respTec.ele("fone").txt(foneLimpo);
 	}
 
-	return doc.doc().end({ headless: false, prettyPrint: false });
+	return doc.end({ headless: false, prettyPrint: false });
 };

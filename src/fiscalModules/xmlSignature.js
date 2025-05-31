@@ -3,14 +3,15 @@
 const { DOMParser } = require("@xmldom/xmldom");
 const { SignedXml } = require("xml-crypto");
 
-function assinarXml(xmlString, privateKeyPem, certificatePem, chave) {
-	const doc = new DOMParser().parseFromString(xmlString, "text/xml");
+function assinarXml(xmlString, privateKeyPem, certificatePem) {
+	if (!xmlString.includes("<infNFe")) {
+		throw new Error("XML informado não contém a tag <infNFe>. Não é possível assinar.");
+	}
 
+	const doc = new DOMParser().parseFromString(xmlString, "text/xml");
 	const sig = new SignedXml();
 
-	// Corrige o algoritmo de canonicalização
-	sig.canonicalizationAlgorithm =
-		"http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+	sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 	sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 
 	sig.addReference(
@@ -25,12 +26,15 @@ function assinarXml(xmlString, privateKeyPem, certificatePem, chave) {
 	sig.signingKey = privateKeyPem;
 
 	sig.keyInfoProvider = {
-		getKeyInfo: () =>
-			`<X509Data><X509Certificate>${certificatePem
+		getKeyInfo: () => {
+			const certClean = certificatePem
 				.replace(/-----BEGIN CERTIFICATE-----/g, "")
 				.replace(/-----END CERTIFICATE-----/g, "")
-				.replace(/\r?\n|\r|\s+/g, "")
-				.trim()}</X509Certificate></X509Data>`,
+				.replace(/[\r\n\s]/g, "")
+				.trim();
+
+			return `<X509Data><X509Certificate>${certClean}</X509Certificate></X509Data>`;
+		},
 	};
 
 	sig.computeSignature(xmlString, {

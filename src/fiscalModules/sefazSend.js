@@ -44,13 +44,13 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufE
 	});
 
 	const xmlLimpo = xmlAssinado
-		.replace(/^\uFEFF/, "") // Remove BOM
-		.replace(/<\?xml[^>]*\?>/, "") // Remove cabeçalho XML
-		.replace(/[\r\n\t]/g, "") // Remove quebras de linha e tabulações
-		.replace(/>\s+</g, "><") // Remove espaços entre tags
+		.replace(/^\uFEFF/, "")
+		.replace(/<\?xml[^>]*\?>/, "")
+		.replace(/[\r\n\t]/g, "")
+		.replace(/>\s+</g, "><")
 		.trim();
 
-	const idLote = String(Date.now()).padStart(15, "0"); // Ex: 000017171234567
+	const idLote = String(Date.now()).padStart(15, "0");
 
 	const enviNFeXml =
 		`<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
@@ -58,7 +58,6 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufE
 		`<indSinc>1</indSinc>` +
 		xmlLimpo +
 		`</enviNFe>`;
-
 
 	const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 		<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -68,6 +67,8 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufE
 				</nfeDadosMsg>
 			</soap12:Body>
 		</soap12:Envelope>`.trim();
+
+	fs.appendFileSync("estrutura-xml", soapEnvelope, "utf-8");
 
 	const response = await axios.post(urlSefaz, soapEnvelope, {
 		httpsAgent: agent,

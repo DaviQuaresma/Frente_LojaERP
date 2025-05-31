@@ -1,13 +1,13 @@
 /** @format */
 
 async function insertSale(
-  connection,
-  total,
-  arredonda,
-  desconto,
-  usu_codigo = -161
+	connection,
+	total,
+	arredonda,
+	desconto,
+	usu_codigo = -161
 ) {
-  const insertQuery = `
+	const insertQuery = `
 	INSERT INTO vendas (
 		ven_data, ven_desconto, cli_codigo, par_cp_codigo, est_codigo,
 		ven_total, ven_arredonda, ven_data_hora_finaliza, ven_hora,
@@ -29,38 +29,38 @@ async function insertSale(
 	RETURNING ven_cod_pedido;
 	`;
 
-  const values = [
-    parseFloat(desconto || 0),
-    parseFloat(total || 0),
-    parseFloat(arredonda || 0),
-    parseInt(usu_codigo || -161),
-  ];
+	const values = [
+		parseFloat(desconto || 0),
+		parseFloat(total || 0),
+		parseFloat(arredonda || 0),
+		parseInt(usu_codigo || -161),
+	];
 
-  const { rows } = await connection.query(insertQuery, values);
-  return rows[0].ven_cod_pedido;
+	const { rows } = await connection.query(insertQuery, values);
+	return rows[0].ven_cod_pedido;
 }
 
 async function updateStock(connection, pro_codigo, quantidade) {
-  if (!pro_codigo || !quantidade || quantidade <= 0)
-    throw new Error("Parâmetros inválidos para updateStock");
+	if (!pro_codigo || !quantidade || quantidade <= 0)
+		throw new Error("Parâmetros inválidos para updateStock");
 
-  const result = await connection.query(
-    `UPDATE estoque_empresa_saldo
+	const result = await connection.query(
+		`UPDATE estoque_empresa_saldo
 		SET ees_ax_saldo = ees_ax_saldo - $1,
 			ees_up_saldo = ees_up_saldo - $1,
 			ees_up_disponivel = ees_up_disponivel - $1,
 			ees_up_custo_total = ees_up_custo_total - $1
 		WHERE pro_codigo = $2
 		RETURNING ees_ax_saldo;`,
-    [quantidade, pro_codigo]
-  );
+		[quantidade, pro_codigo]
+	);
 
-  if (result.rowCount === 0)
-    throw new Error(`Produto ${pro_codigo} não encontrado.`);
+	if (result.rowCount === 0)
+		throw new Error(`Produto ${pro_codigo} não encontrado.`);
 }
 
 async function createTablesIfNotExists(connection) {
-  await connection.query(`
+	await connection.query(`
 		CREATE TABLE IF NOT EXISTS vendas_inserted (
 			id SERIAL PRIMARY KEY,
 			ven_cod_pedido INTEGER,
@@ -74,25 +74,25 @@ async function createTablesIfNotExists(connection) {
 }
 
 async function insertIntoVendasInserted(connection, vendaCompleta) {
-  const { venda, itens } = vendaCompleta;
-  await connection.query(
-    `
+	const { venda, itens } = vendaCompleta;
+	await connection.query(
+		`
 		INSERT INTO vendas_inserted (
 			ven_cod_pedido, total, desconto, arredonda, data, itens
 		) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      venda.ven_cod_pedido,
-      venda.total,
-      venda.desconto,
-      venda.arredonda,
-      venda.data,
-      JSON.stringify(itens),
-    ]
-  );
+		[
+			venda.ven_cod_pedido,
+			venda.total,
+			venda.desconto,
+			venda.arredonda,
+			venda.data,
+			JSON.stringify(itens),
+		]
+	);
 }
 
 async function dropAndCreateTrigger(connection) {
-  await connection.query(`
+	await connection.query(`
 		DROP TRIGGER IF EXISTS p999_trg_computed_itens_venda ON itens_venda;
 		DROP FUNCTION IF EXISTS p999_trg_computed_itens_venda();
 
@@ -222,7 +222,7 @@ async function dropAndCreateTrigger(connection) {
 }
 
 async function createTriggerNFC(connection) {
-  await connection.query(`
+	await connection.query(`
 		DO $$
 		DECLARE max_nfe integer;
 		BEGIN
@@ -238,14 +238,14 @@ async function createTriggerNFC(connection) {
 }
 
 async function defineDefaultNFC(connection) {
-  await connection.query(`
+	await connection.query(`
 		ALTER TABLE vendas ALTER COLUMN ven_numero_dfe
 		SET DEFAULT nextval('seq_ven_numero_dfe');
 	`);
 }
 
 async function createTriggerNf_number(connection) {
-  await connection.query(`
+	await connection.query(`
 		CREATE OR REPLACE FUNCTION sync_nf_numero_with_dfe()
 		RETURNS trigger AS $$
 		BEGIN
@@ -265,31 +265,31 @@ async function createTriggerNf_number(connection) {
 }
 
 async function checkRequiredColumns(connection) {
-  const requiredColumns = ["ite_aliq_icms_efetiva", "ite_cmv_com_icms"];
-  const missingColumns = [];
+	const requiredColumns = ["ite_aliq_icms_efetiva", "ite_cmv_com_icms"];
+	const missingColumns = [];
 
-  for (const column of requiredColumns) {
-    const { rowCount } = await connection.query(
-      `SELECT 1 FROM information_schema.columns
+	for (const column of requiredColumns) {
+		const { rowCount } = await connection.query(
+			`SELECT 1 FROM information_schema.columns
 			 WHERE table_name = 'itens_venda' AND column_name = $1`,
-      [column]
-    );
+			[column]
+		);
 
-    if (rowCount === 0) {
-      missingColumns.push(column);
-    }
-  }
+		if (rowCount === 0) {
+			missingColumns.push(column);
+		}
+	}
 
-  if (missingColumns.length > 0) {
-    throw new Error(
-      `❌ Campos ausentes no banco: ${missingColumns.join(", ")}`
-    );
-  }
+	if (missingColumns.length > 0) {
+		throw new Error(
+			`❌ Campos ausentes no banco: ${missingColumns.join(", ")}`
+		);
+	}
 }
 
 async function getEmpresaData(connection, emp_codigo) {
-  const { rows } = await connection.query(
-    `
+	const { rows } = await connection.query(
+		`
 		SELECT
 			emp_cnpj AS "CNPJ",
 			emp_nome AS "xNome",
@@ -314,19 +314,19 @@ async function getEmpresaData(connection, emp_codigo) {
 		WHERE emp_codigo = $1
 		LIMIT 1
 		`,
-    [emp_codigo]
-  );
+		[emp_codigo]
+	);
 
-  if (rows.length === 0) {
-    throw new Error(`Empresa com emp_codigo ${emp_codigo} não encontrada.`);
-  }
+	if (rows.length === 0) {
+		throw new Error(`Empresa com emp_codigo ${emp_codigo} não encontrada.`);
+	}
 
-  return rows[0];
+	return rows[0];
 }
 
 async function getCertificadoData(connection, emp_codigo) {
-  const { rows } = await connection.query(
-    `
+	const { rows } = await connection.query(
+		`
 		SELECT
 			cer_caminho AS "caminho",
 			cer_senha AS "senha"
@@ -335,21 +335,21 @@ async function getCertificadoData(connection, emp_codigo) {
 		ORDER BY cer_vencimento DESC
 		LIMIT 1
 		`,
-    [emp_codigo]
-  );
+		[emp_codigo]
+	);
 
-  if (rows.length === 0) {
-    throw new Error(
-      `Certificado ativo para emp_codigo ${emp_codigo} não encontrado.`
-    );
-  }
+	if (rows.length === 0) {
+		throw new Error(
+			`Certificado ativo para emp_codigo ${emp_codigo} não encontrado.`
+		);
+	}
 
-  return rows[0];
+	return rows[0];
 }
 
 async function getVendaById(connection, ven_cod_pedido) {
-  const { rows } = await connection.query(
-    `
+	const { rows } = await connection.query(
+		`
 		SELECT
 			ven_cod_pedido,
 			ven_total,
@@ -368,21 +368,21 @@ async function getVendaById(connection, ven_cod_pedido) {
 		WHERE ven_cod_pedido = $1
 		LIMIT 1
 		`,
-    [ven_cod_pedido]
-  );
+		[ven_cod_pedido]
+	);
 
-  if (rows.length === 0) {
-    throw new Error(
-      `Venda com ven_cod_pedido ${ven_cod_pedido} não encontrada.`
-    );
-  }
+	if (rows.length === 0) {
+		throw new Error(
+			`Venda com ven_cod_pedido ${ven_cod_pedido} não encontrada.`
+		);
+	}
 
-  return rows[0];
+	return rows[0];
 }
 
 async function getItensVendaByPedido(connection, ven_cod_pedido) {
-  const { rows } = await connection.query(
-    `
+	const { rows } = await connection.query(
+		`
 		SELECT
 			ite_codigo,
 			pro_codigo,
@@ -401,14 +401,14 @@ async function getItensVendaByPedido(connection, ven_cod_pedido) {
 		FROM itens_venda
 		WHERE ven_cod_pedido = $1
 		`,
-    [ven_cod_pedido]
-  );
+		[ven_cod_pedido]
+	);
 
-  return rows;
+	return rows;
 }
 
 async function createXmlTable(connection) {
-  await connection.query(`
+	await connection.query(`
     CREATE TABLE IF NOT EXISTS xmls_gerados (
       id SERIAL PRIMARY KEY,
       nome VARCHAR(255) NOT NULL,
@@ -419,19 +419,40 @@ async function createXmlTable(connection) {
   `);
 }
 
+async function createNfeProtocols(connection) {
+	await connection.query(`
+    CREATE TABLE IF NOT EXISTS nfe_protocolos (
+		id SERIAL PRIMARY KEY,
+		chave_acesso VARCHAR(44) NOT NULL UNIQUE,
+		protocolo XML NOT NULL,
+		criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+  `);
+}
+
+async function saveProtocol(connection, chaveAcesso, protocoloXml) {
+	await connection.query(
+		`INSERT INTO nfe_protocolos (chave_acesso, protocolo) VALUES ($1, $2)
+     ON CONFLICT (chave_acesso) DO UPDATE SET protocolo = $2`,
+		[chaveAcesso, protocoloXml]
+	);
+}
+
 module.exports = {
-  updateStock,
-  insertSale,
-  createTablesIfNotExists,
-  insertIntoVendasInserted,
-  dropAndCreateTrigger,
-  createTriggerNFC,
-  defineDefaultNFC,
-  createTriggerNf_number,
-  checkRequiredColumns,
-  getEmpresaData,
-  getCertificadoData,
-  getVendaById,
-  getItensVendaByPedido,
-  createXmlTable
+	updateStock,
+	insertSale,
+	createTablesIfNotExists,
+	insertIntoVendasInserted,
+	dropAndCreateTrigger,
+	createTriggerNFC,
+	defineDefaultNFC,
+	createTriggerNf_number,
+	checkRequiredColumns,
+	getEmpresaData,
+	getCertificadoData,
+	getVendaById,
+	getItensVendaByPedido,
+	createXmlTable,
+	createNfeProtocols,
+	saveProtocol
 };
