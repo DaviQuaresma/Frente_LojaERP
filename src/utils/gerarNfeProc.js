@@ -1,27 +1,22 @@
 /** @format */
 
-const { create } = require("xmlbuilder2");
+module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr = "") {
+  const matchNFe = xmlAssinado.match(/<NFe[\s\S]*<\/NFe>/);
+  const matchProt = protNFeXmlStr.match(/<protNFe[\s\S]*<\/protNFe>/);
+  const matchSupl = infNFeSuplStr?.match(/<infNFeSupl[\s\S]*<\/infNFeSupl>/);
 
-module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr = null) {
-  try {
-    const nfeProc = create({ version: "1.0", encoding: "UTF-8" }).ele("nfeProc", {
-      xmlns: "http://www.portalfiscal.inf.br/nfe",
-      versao: "4.00",
-    });
-
-    // Converte strings para elementos XML
-    const nfe = create(xmlAssinado).root();
-    const protNFe = create(protNFeXmlStr).root();
-
-    nfeProc.import(nfe);
-    if (infNFeSuplStr) {
-      const infSupl = create(infNFeSuplStr).root();
-      nfeProc.import(infSupl);
-    }
-    nfeProc.import(protNFe);
-
-    return nfeProc.end({ prettyPrint: false });
-  } catch (err) {
-    throw new Error(`❌ Erro ao montar nfeProc: ${err.message}`);
+  if (!matchNFe || !matchProt) {
+    throw new Error("❌ Não foi possível extrair a NFe ou o protNFe para compor o nfeProc.");
   }
+
+  const nfeXml = matchNFe[0].trim();
+  const protXml = matchProt[0].trim();
+  const suplXml = matchSupl?.[0]?.trim() || "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  ${nfeXml}
+  ${suplXml}
+  ${protXml}
+</nfeProc>`.trim();
 };

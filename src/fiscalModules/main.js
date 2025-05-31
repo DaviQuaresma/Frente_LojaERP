@@ -110,8 +110,9 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     ide.cDV = chave.slice(-1);
 
     const baseUrl = sefazInfo.qrCode;
-    const qrCodeSemHash = `${baseUrl}?p=${chave}|2|1|${empresa.cscId}|2.33|6450325146626E31513848555744503048636647704135417059553D|${tpAmb}`;
+    const qrCodeSemHash = `${baseUrl}?p=${chave}|2|${tpAmb}|${empresa.cscId}`;
     const hash = crypto.createHmac("sha1", empresa.cscToken).update(qrCodeSemHash).digest("hex").toUpperCase();
+
     const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
 
     const produtosXml = [];
@@ -250,11 +251,16 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     if (matchProtocolo) {
-      const infNFeSuplXml = create({ version: "1.0", encoding: "UTF-8" })
+      const hashQRCode = hash.toUpperCase();
+      const infNFeSuplXml = create(
+        // { version: "1.0", encoding: "UTF-8" }
+      )
         .ele("infNFeSupl")
-        .ele("qrCode").dat(qrCodeFinal).up()
+        .ele("qrCode").txt(hashQRCode).up()
         .ele("urlChave").txt(sefazInfo.qrCode).up()
-        .up().end({ prettyPrint: false });
+        .up()
+        .end({ prettyPrint: false });
+
       xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
     }
 
