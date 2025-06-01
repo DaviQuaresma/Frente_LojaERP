@@ -227,11 +227,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     await createXmlTable(connection);
 
     const xml = generateXml(dados).trim();
-
     const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave).trim();
-
     const conteudoFinal = assinado.replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1").trim();
-
     const resposta = await enviarXmlParaSefaz(conteudoFinal, certificatePem, privateKeyPem, empresa.UF);
 
     const matchRecibo = resposta.match(/<nRec>(.*?)<\/nRec>/);
@@ -239,29 +236,48 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const matchStatus = resposta.match(/<cStat>(.*?)<\/cStat>/);
     let matchProtocolo = resposta.match(/<protNFe[\s\S]*?<\/protNFe>/);
 
+    console.log("🧩 Matchs iniciais:");
+    console.log("➡️ matchRecibo:", !!matchRecibo);
+    console.log("➡️ matchProtocolo:", !!matchProtocolo);
+
+    fs.appendFileSync(logFilePath, `matchRecibo: ${!!matchRecibo}\n\n\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `matchProtocolo: ${!!matchProtocolo}\n\n\n`, "utf-8");
+
     let protocolo = matchProtocolo?.[0];
     let xmlFinal = conteudoFinal;
 
     if (!protocolo && matchRecibo) {
+      console.log("🔍 Protocolo não encontrado, consultando recibo...");
       const consulta = await consultarRecibo(matchRecibo[1], certificatePem, privateKeyPem, empresa.UF);
+      console.log("🧾 Resultado da consulta:", consulta);
+      fs.appendFileSync(logFilePath, `🧾 Resultado da consulta: ${consulta}\n\n\n`, "utf-8");
+
       if (consulta.sucesso && consulta.protocolo) {
         protocolo = consulta.protocolo;
         matchProtocolo = [consulta.protocolo];
+        console.log("✅ Protocolo obtido via consulta:", protocolo);
+        fs.appendFileSync(logFilePath, `Protocolo obtido via consulta: ${protocolo}\n\n\n`, "utf-8");
+      } else {
+        console.warn("⚠️ Consulta de recibo falhou ou não retornou protocolo.");
+        fs.appendFileSync(logFilePath, `Consulta de recibo falhou ou não retornou protocolo.\n\n\n`, "utf-8");
       }
     }
 
     if (matchProtocolo) {
       const hashQRCode = hash.toUpperCase();
-      const infNFeSuplXml = create(
-        // { version: "1.0", encoding: "UTF-8" }
-      )
+      infNFeSuplXml = create()
         .ele("infNFeSupl")
         .ele("qrCode").txt(hashQRCode).up()
         .ele("urlChave").txt(sefazInfo.qrCode).up()
         .up()
         .end({ prettyPrint: false });
 
+      console.log("🔗 infNFeSuplXml gerado com QR Code.");
+      fs.appendFileSync(logFilePath, `🔗 infNFeSuplXml gerado com QR Code.\n\n\n`, "utf-8");
       xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
+    } else {
+      console.warn("❌ matchProtocolo não definido. Não será gerado XML final com QR Code.");
+      fs.appendFileSync(logFilePath, `❌ matchProtocolo não definido. Não será gerado XML final com QR Code.\n\n\n`, "utf-8");
     }
 
     await saveProtocol(connection, dados.chave, protocolo || "");
@@ -287,7 +303,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
           await saveProtocol(connection, chave, matchProtocolo[0]);
 
-          const xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0]);
+          const xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
 
           const nomeFinal = `xml-autorizado-${vendaID}-${timestamp}.xml`;
           await connection.query(
