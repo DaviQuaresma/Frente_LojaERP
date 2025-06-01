@@ -96,9 +96,13 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       verProc: "3.0.928.8245"
     };
 
+    const dataEmissao = new Date(ide.dhEmi);
+    const AAMM = `${String(dataEmissao.getFullYear()).slice(2)}${String(dataEmissao.getMonth() + 1).padStart(2, "0")}`;
+
+
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
-      AAMM: "2505",
+      AAMM,
       CNPJ: empresa.CNPJ,
       mod: ide.mod,
       serie: ide.serie,
