@@ -1,7 +1,5 @@
-/** @format */
-
 module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr = "") {
-  const matchNFe = xmlAssinado.match(/<NFe[\s\S]*<\/NFe>/);
+  let matchNFe = xmlAssinado.match(/<NFe[\s\S]*<\/NFe>/);
   const matchProt = protNFeXmlStr.match(/<protNFe[\s\S]*<\/protNFe>/);
   const matchSupl = infNFeSuplStr?.match(/<infNFeSupl[\s\S]*<\/infNFeSupl>/);
 
@@ -9,14 +7,17 @@ module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr
     throw new Error("❌ Não foi possível extrair a NFe ou o protNFe para compor o nfeProc.");
   }
 
-  const nfeXml = matchNFe[0].trim();
+  let nfeXml = matchNFe[0].trim();
   const protXml = matchProt[0].trim();
   const suplXml = matchSupl?.[0]?.trim() || "";
+
+  if (suplXml) {
+    nfeXml = nfeXml.replace(/(<Signature[\s\S]*?<\/Signature>)/, `${suplXml}$1`);
+  }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
   ${nfeXml}
-  ${suplXml}
   ${protXml}
 </nfeProc>`.trim();
 };
