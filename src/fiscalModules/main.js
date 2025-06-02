@@ -116,7 +116,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const baseUrl = sefazInfo.qrCode;
     const qrCodeSemHash = `${baseUrl}?p=${chave}|2|${tpAmb}|${empresa.cscId}`;
     const hash = crypto.createHmac("sha1", empresa.cscToken).update(qrCodeSemHash).digest("hex").toUpperCase();
-
     const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
 
     const produtosXml = [];
@@ -267,14 +266,16 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       }
     }
 
+    let infNFeSuplXml
+
     if (matchProtocolo) {
-      const hashQRCode = hash.toUpperCase();
       infNFeSuplXml = create()
         .ele("infNFeSupl")
-        .ele("qrCode").txt(hashQRCode).up()
-        .ele("urlChave").txt(sefazInfo.qrCode).up()
+        .ele("qrCode").txt(qrCodeFinal).up()
+        .ele("urlChave").txt(sefazInfo.qrCode.replace(/\?$/, "")).up()
         .up()
         .end({ prettyPrint: false });
+
 
       console.log("🔗 infNFeSuplXml gerado com QR Code.");
       fs.appendFileSync(logFilePath, `🔗 infNFeSuplXml gerado com QR Code.\n\n\n`, "utf-8");
