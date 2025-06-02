@@ -113,6 +113,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     ide.cDV = chave.slice(-1);
 
+    fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
+
     const baseUrl = sefazInfo.qrCode;
     const qrCodeSemHash = `${baseUrl}?p=${chave}|2|${tpAmb}|${empresa.cscId}`;
     const hash = crypto.createHmac("sha1", empresa.cscToken).update(qrCodeSemHash).digest("hex").toUpperCase();
@@ -267,12 +269,14 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     let infNFeSuplXml
+    const qrCodeBaseUrl = sefazInfo.qrCode;
+    const urlChave = qrCodeBaseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
 
     if (matchProtocolo) {
       infNFeSuplXml = create()
         .ele("infNFeSupl")
         .ele("qrCode").txt(qrCodeFinal).up()
-        .ele("urlChave").txt(sefazInfo.qrCode.replace(/\?$/, "")).up()
+        .ele("urlChave").txt(urlChave).up()
         .up()
         .end({ prettyPrint: false });
 
@@ -303,12 +307,12 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
         fs.appendFileSync(logFilePath, `❌ Rejeição ${status}: ${motivo}\n\n\n\n`, "utf-8");
 
-        if ((status === "104" || status === "213") && matchProtocolo) {
+        if ((status === "104" || status === "213") && matchProtocolo && infNFeSuplXml) {
           fs.appendFileSync(logFilePath, `📄 Protocolo extraído:\n${matchProtocolo[0]}\n\n\n\n`, "utf-8");
 
           await saveProtocol(connection, chave, matchProtocolo[0]);
 
-          const xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
+          xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
 
           const nomeFinal = `xml-autorizado-${vendaID}-${timestamp}.xml`;
           await connection.query(
