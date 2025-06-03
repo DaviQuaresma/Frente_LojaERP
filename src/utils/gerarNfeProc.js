@@ -1,5 +1,5 @@
 module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr = "") {
-  let matchNFe = xmlAssinado.match(/<NFe[\s\S]*<\/NFe>/);
+  const matchNFe = xmlAssinado.match(/<NFe[\s\S]*<\/NFe>/);
   const matchProt = protNFeXmlStr.match(/<protNFe[\s\S]*<\/protNFe>/);
   const matchSupl = infNFeSuplStr?.match(/<infNFeSupl[\s\S]*<\/infNFeSupl>/);
 

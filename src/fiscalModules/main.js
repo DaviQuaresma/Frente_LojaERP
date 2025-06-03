@@ -116,9 +116,19 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
 
     const baseUrl = sefazInfo.qrCode;
-    const qrCodeSemHash = `${baseUrl}?p=${chave}|2|${tpAmb}|${empresa.cscId}`;
-    const hash = crypto.createHmac("sha1", empresa.cscToken).update(qrCodeSemHash).digest("hex").toUpperCase();
-    const qrCodeFinal = `${qrCodeSemHash}|${hash}`;
+    const versaoQrCode = "2";
+
+    // Geração do hash correto para o QR Code
+    const dadosParaHash = `${chave}${empresa.cscToken}`;
+    const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
+
+    // Montagem final do QR Code com todos os parâmetros exigidos pela SEFAZ
+    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${tpEmis}|${cHashQRCode}`;
+    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
+
+    // Log para depuração
+    fs.appendFileSync(logFilePath, `🔗 QR Code Final: ${qrCodeFinal}\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `🔗 urlChave: ${urlChave}\n`, "utf-8");
 
     const produtosXml = [];
     let vProd = 0, vBC = 0, vICMS = 0, vIPI = 0, vST = 0, vTotTrib = 0;
@@ -269,8 +279,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     let infNFeSuplXml
-    const qrCodeBaseUrl = sefazInfo.qrCode;
-    const urlChave = qrCodeBaseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
+
 
     if (matchProtocolo) {
       infNFeSuplXml = create()

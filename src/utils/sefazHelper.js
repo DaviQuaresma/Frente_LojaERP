@@ -22,7 +22,7 @@ const urls = {
     PI: {
         production: {
             envio: "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "http://www.sefaz.pi.gov.br/nfce/qrcode",
+            qrCode: "http://www.sefaz.pi.gov.br/nfce/consulta",
         },
         homologation: {
             envio: "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
