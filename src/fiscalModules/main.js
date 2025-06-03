@@ -242,7 +242,17 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     await createXmlTable(connection);
 
     const xml = generateXml(dados).trim();
+
+    const xmlNaoAssinado = generateXml(dados).trim();
+    // fs.writeFileSync(path.join(__dirname, "debug", `xml-gerado-${vendaID}.xml`), xmlNaoAssinado, "utf-8");
+
     const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave).trim();
+    // fs.writeFileSync(path.join(__dirname, "debug", `xml-assinado-${vendaID}.xml`), assinado, "utf-8");
+
+    const timestamp2 = Date.now();
+
+    let testeXmlNaoAssinado = `estruturaXml-${vendaID}-${timestamp2}.xml`
+
     const conteudoFinal = assinado.replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1").trim();
     const resposta = await enviarXmlParaSefaz(conteudoFinal, certificatePem, privateKeyPem, empresa.UF);
 
@@ -279,7 +289,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     }
 
     let infNFeSuplXml
-
 
     if (matchProtocolo) {
       infNFeSuplXml = create()
@@ -324,6 +333,12 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
 
           const nomeFinal = `xml-autorizado-${vendaID}-${timestamp}.xml`;
+
+          await connection.query(
+            `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
+            [testeXmlNaoAssinado, Buffer.byteLength(xmlNaoAssinado, "utf-8"), xmlNaoAssinado]
+          );
+
           await connection.query(
             `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
             [nomeFinal, Buffer.byteLength(xmlFinal, "utf-8"), xmlFinal]
