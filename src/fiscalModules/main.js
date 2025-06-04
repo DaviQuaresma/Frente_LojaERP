@@ -99,7 +99,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const dataEmissao = new Date(ide.dhEmi);
     const AAMM = `${String(dataEmissao.getFullYear()).slice(2)}${String(dataEmissao.getMonth() + 1).padStart(2, "0")}`;
 
-
     const chave = gerarChaveAcesso({
       cUF: ide.cUF,
       AAMM,
@@ -116,13 +115,9 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
 
     const baseUrl = sefazInfo.qrCode;
+    const versaoQrCode = "1";
 
-    // Geração do hash correto para o QR Code
-    const dadosParaHash = `${chave}${empresa.cscToken}`;
-    const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
-
-    // Montagem final do QR Code com todos os parâmetros exigidos pela SEFAZ
-    const qrCodeFinal = `${baseUrl}?p=${chave}|2|${tpAmb}|${tpEmis}|${cHashQRCode}`;
+    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}`;
     const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
 
     // Log para depuração
@@ -144,8 +139,8 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       produtosXml.push({
         cProd: item.pro_codigo.toString(),
         cEAN: "SEM GTIN",
-        xProd: item.ite_descricao || "PRODUTO",
-        NCM: item.pro_codigo_fiscal || "00000000",
+        xProd: item.ite_descricao || item.pro_nome || "PRODUTO",
+        NCM: item.pro_codigo_fiscal || item.pro_ncm || "00000000",
         CFOP: item.ite_cfop || "5102",
         uCom: item.ite_unidade || "UN",
         qCom: qtd.toFixed(4),
@@ -156,6 +151,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         qTrib: qtd.toFixed(4),
         vUnTrib: valorUnit.toFixed(10),
         indTot: "1",
+        vTotTrib: (icms + ipi + st).toFixed(2),
       });
 
       vProd += totalItem;
@@ -311,7 +307,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         .ele("urlChave").txt(urlChave).up()
         .up()
         .end({ prettyPrint: false });
-
 
       console.log("🔗 infNFeSuplXml gerado com QR Code.");
       fs.appendFileSync(logFilePath, `🔗 infNFeSuplXml gerado com QR Code.\n\n\n`, "utf-8");

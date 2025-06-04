@@ -2,17 +2,17 @@ const urls = {
     AM: {
         production: {
             envio: "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeAutorizacao4",
-            qrCode: "https://www.sefaz.am.gov.br/nfce/consulta?",
+            qrCode: "https://sistemas.sefaz.am.gov.br/nfceweb/consultarNFCe.jsp?",
         },
         homologation: {
             envio: "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeAutorizacao4",
-            qrCode: "https://www.sefaz.am.gov.br/nfce/consulta?",
+            qrCode: "https://homnfce.sefaz.am.gov.br/nfceweb/consultarNFCe.jsp?",
         },
     },
     PB: {
         production: {
             envio: "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "http://www.sefaz.pb.gov.br/nfce/consulta",
+            qrCode: "http://www.sefaz.pb.gov.br/nfce",
         },
         homologation: {
             envio: "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
@@ -22,21 +22,21 @@ const urls = {
     PI: {
         production: {
             envio: "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "http://www.sefaz.pi.gov.br/nfce/consulta",
+            qrCode: "http://www.sefaz.pi.gov.br/nfce/qrcode",
         },
         homologation: {
             envio: "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "	http://www.sefaz.pi.gov.br/nfce/consulta",
+            qrCode: "http://www.sefaz.pi.gov.br/nfce/qrcode",
         },
     },
     RN: {
         production: {
             envio: "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "http://www.set.rn.gov.br/nfce/consulta?",
+            qrCode: "http://nfce.set.rn.gov.br/consultarNFCe.aspx?",
         },
         homologation: {
             envio: "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-            qrCode: "http://www.set.rn.gov.br/nfce/consulta?",
+            qrCode: "http://hom.nfce.set.rn.gov.br/consultarNFCe.aspx?",
         },
     },
 };
