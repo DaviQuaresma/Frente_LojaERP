@@ -116,14 +116,13 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
 
     const baseUrl = sefazInfo.qrCode;
-    const versaoQrCode = "2";
 
     // Geração do hash correto para o QR Code
     const dadosParaHash = `${chave}${empresa.cscToken}`;
     const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
 
     // Montagem final do QR Code com todos os parâmetros exigidos pela SEFAZ
-    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${tpEmis}|${cHashQRCode}`;
+    const qrCodeFinal = `${baseUrl}?p=${chave}|2|${tpAmb}|${tpEmis}|${cHashQRCode}`;
     const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
 
     // Log para depuração
@@ -191,10 +190,28 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
           ...(fone ? { fone } : {}),
         },
         IE: empresa.IE && empresa.IE.trim() !== "" ? empresa.IE.trim() : "ISENTO",
-        CRT: "3",
+        CRT: "1",
       },
       prod: produtosXml[0],
-      imposto: {},
+      imposto: {
+        vTotTrib: "8.01",
+        ICMS: {
+          orig: "0",
+          CSOSN: "102"
+        },
+        PIS: {
+          CST: "99",
+          vBC: "0.00",
+          pPIS: "0.0000",
+          vPIS: "0.00"
+        },
+        COFINS: {
+          CST: "99",
+          vBC: "0.00",
+          pCOFINS: "0.0000",
+          vCOFINS: "0.00"
+        }
+      },
       total: {
         vBC: vBC.toFixed(2),
         vICMS: vICMS.toFixed(2),
@@ -242,12 +259,9 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     await createXmlTable(connection);
 
     const xml = generateXml(dados).trim();
-
     const xmlNaoAssinado = generateXml(dados).trim();
-    // fs.writeFileSync(path.join(__dirname, "debug", `xml-gerado-${vendaID}.xml`), xmlNaoAssinado, "utf-8");
 
     const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave).trim();
-    // fs.writeFileSync(path.join(__dirname, "debug", `xml-assinado-${vendaID}.xml`), assinado, "utf-8");
 
     const timestamp2 = Date.now();
 
