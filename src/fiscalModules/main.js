@@ -117,8 +117,11 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     const baseUrl = sefazInfo.qrCode;
     const versaoQrCode = "1";
 
-    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}`;
-    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
+    const dadosParaHash = `${chave}${empresa.cscToken}`;
+    const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
+
+    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${tpEmis}|${cHashQRCode}`;
+    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, ""); // segue o mesmo endpoint de qrcode, como combinado
 
     // Log para depuração
     fs.appendFileSync(logFilePath, `🔗 QR Code Final: ${qrCodeFinal}\n`, "utf-8");
