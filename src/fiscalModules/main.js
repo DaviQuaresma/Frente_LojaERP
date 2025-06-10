@@ -115,14 +115,25 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
 
     const baseUrl = sefazInfo.qrCode;
-    const versaoQrCode = "1";
+    const versaoQrCode = "2";
 
     const dadosParaHash = `${chave}${empresa.cscToken}`;
     const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
+    
+    const idCSC = empresa.cscId;
+    const cscToken = empresa.cscToken;
 
-    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${tpEmis}|${cHashQRCode}`;
-    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, ""); // segue o mesmo endpoint de qrcode, como combinado
+    fs.appendFileSync(logFilePath, `baseUrl: ${baseUrl}`)
+    fs.appendFileSync(logFilePath, `chave: ${chave}`)
+    fs.appendFileSync(logFilePath, `versaoQrCode: ${versaoQrCode}`)
+    fs.appendFileSync(logFilePath, `tpAmb: ${tpAmb}`)
+    fs.appendFileSync(logFilePath, `idCSC: ${idCSC}`)
+    fs.appendFileSync(logFilePath, `cscToken: ${cscToken}`)
+    fs.appendFileSync(logFilePath, `cHashQRCode: ${cHashQRCode}`)
 
+    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${idCSC}|${cHashQRCode}`;
+    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "").replace("/qrcode", "/consulta");
+    
     // Log para depuração
     fs.appendFileSync(logFilePath, `🔗 QR Code Final: ${qrCodeFinal}\n`, "utf-8");
     fs.appendFileSync(logFilePath, `🔗 urlChave: ${urlChave}\n`, "utf-8");
