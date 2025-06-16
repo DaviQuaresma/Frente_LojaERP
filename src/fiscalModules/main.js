@@ -116,25 +116,36 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     const baseUrl = sefazInfo.qrCode;
     const versaoQrCode = "2";
-
-    const dadosParaHash = `${chave}${empresa.cscToken}`;
-    const cHashQRCode = crypto.createHash("sha1").update(dadosParaHash).digest("hex").toUpperCase();
-    
     const idCSC = empresa.cscId;
     const cscToken = empresa.cscToken;
 
-    fs.appendFileSync(logFilePath, `baseUrl: ${baseUrl}`)
-    fs.appendFileSync(logFilePath, `chave: ${chave}`)
-    fs.appendFileSync(logFilePath, `versaoQrCode: ${versaoQrCode}`)
-    fs.appendFileSync(logFilePath, `tpAmb: ${tpAmb}`)
-    fs.appendFileSync(logFilePath, `idCSC: ${idCSC}`)
-    fs.appendFileSync(logFilePath, `cscToken: ${cscToken}`)
-    fs.appendFileSync(logFilePath, `cHashQRCode: ${cHashQRCode}`)
+    // Monta a string que será usada para gerar o HMAC SHA1
+    const qrCodeString = `${chave}|${versaoQrCode}|${tpAmb}|${idCSC}`;
 
-    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${idCSC}|${cHashQRCode}`;
-    const urlChave = baseUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "").replace("/qrcode", "/consulta");
-    
+    // Gera o hash com HMAC usando o CSC como chave
+    const cHashQRCode = crypto
+      .createHmac("sha1", cscToken)
+      .update(qrCodeString)
+      .digest("hex")
+      .toUpperCase();
+
+    // Monta a URL final do QR Code
+    const qrCodeFinal = `${baseUrl}?p=${qrCodeString}|${cHashQRCode}`;
+
+    // Monta a URL de consulta usada no <urlChave>
+    const urlChave = baseUrl
+      .replace(/^https?:\/\//, "")
+      .replace(/\?.*$/, "")
+      .replace("/qrcode", "/consulta");
+
     // Log para depuração
+    fs.appendFileSync(logFilePath, `\nbaseUrl: ${baseUrl}\n`)
+    fs.appendFileSync(logFilePath, `chave: ${chave}\n`)
+    fs.appendFileSync(logFilePath, `versaoQrCode: ${versaoQrCode}\n`)
+    fs.appendFileSync(logFilePath, `tpAmb: ${tpAmb}\n`)
+    fs.appendFileSync(logFilePath, `idCSC: ${idCSC}\n`)
+    fs.appendFileSync(logFilePath, `cscToken: ${cscToken}\n`)
+    fs.appendFileSync(logFilePath, `cHashQRCode: ${cHashQRCode}\n`)
     fs.appendFileSync(logFilePath, `🔗 QR Code Final: ${qrCodeFinal}\n`, "utf-8");
     fs.appendFileSync(logFilePath, `🔗 urlChave: ${urlChave}\n`, "utf-8");
 

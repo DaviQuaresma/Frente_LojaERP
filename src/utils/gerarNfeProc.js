@@ -12,7 +12,7 @@ module.exports = function gerarNfeProc(xmlAssinado, protNFeXmlStr, infNFeSuplStr
   const suplXml = matchSupl?.[0]?.trim() || "";
 
   if (suplXml) {
-    nfeXml = nfeXml.replace(/(<Signature[\s\S]*?<\/Signature>)/, `${suplXml}$1`);
+    nfeXml = nfeXml.replace(/<\/infNFe>/, '</infNFe>' + suplXml);
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
