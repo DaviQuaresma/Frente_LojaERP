@@ -1,7 +1,7 @@
 {
   "name": "frentelojaerp",
-  "version": "v0.7.49",
-  "description": "v0.7.49",
+  "version": "v0.8.53",
+  "description": "v0.8.53",
   "main": "./src/main/index.js",
   "scripts": {
     "test": "npx jest",
@@ -23,12 +23,14 @@
   },
   "homepage": "https://github.com/DaviQuaresma/frenteLojaERP#readme",
   "dependencies": {
+    "@xmldom/xmldom": "^0.9.8",
     "axios": "^1.9.0",
     "dotenv": "^16.5.0",
     "fs": "^0.0.1-security",
     "jest": "^29.7.0",
     "mysql2": "^3.14.1",
     "node-forge": "^1.3.1",
+    "node-html-parser": "^7.0.1",
     "pg": "^8.15.6",
     "xml-crypto": "^2.1.6",
     "xmlbuilder2": "^3.1.1",

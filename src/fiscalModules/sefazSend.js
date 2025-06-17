@@ -68,7 +68,7 @@ async function enviarXmlParaSefaz(xmlAssinado, certificadoPem, chavePrivada, ufE
 			</soap12:Body>
 		</soap12:Envelope>`.trim();
 
-	fs.appendFileSync("estrutura-xml", soapEnvelope, "utf-8");
+	fs.writeFileSync("soapEnvelope.xml", soapEnvelope, "utf-8");
 
 	const response = await axios.post(urlSefaz, soapEnvelope, {
 		httpsAgent: agent,

@@ -78,7 +78,7 @@ module.exports = function gerarXmlNfe(dados) {
 		.ele("indTot").txt(dados.prod.indTot).up();
 
 	const imposto = det.ele("imposto");
-	imposto.ele("vTotTrib").txt(dados.prod.vTotTrib || "0.00").up(); // 👈 Usa o valor de cada item
+	imposto.ele("vTotTrib").txt(dados.prod.vTotTrib || "0.00").up();
 
 
 	const icmsData = dados.imposto?.ICMS || { orig: "0", CST: "00", modBC: "3", vBC: "0.00", pICMS: "0.00", vICMS: "0.00", CSOSN: "102" };

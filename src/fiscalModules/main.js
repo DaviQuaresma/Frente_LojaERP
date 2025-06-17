@@ -18,6 +18,7 @@ const getCUF = require("../utils/getCUF");
 const consultarRecibo = require("../utils/consultarRecibo");
 const { getNewClient } = require("../db/getNewClient");
 const { getEmpresaData, getVendaById, getItensVendaByPedido, createXmlTable, saveProtocol } = require("../utils/dbCommands");
+const adicionarInfNFeSupl = require("../utils/addInfNFeSupl")
 
 module.exports = async function fiscalMain(vendaID, certificadoManual) {
   const emp_codigo = 1;
@@ -112,40 +113,28 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     ide.cDV = chave.slice(-1);
 
-    fs.appendFileSync(logFilePath, `CSC ID: ${empresa.cscId} | CSC Token: ${empresa.cscToken}\n\n`, "utf-8");
-
     const baseUrl = sefazInfo.qrCode;
     const versaoQrCode = "2";
     const idCSC = empresa.cscId;
-    const cscToken = empresa.cscToken;
+    const cscToken = empresa.cscToken.replace(/[^A-Za-z0-9]/g, ""); // Limpa token
 
-    // Monta a string que será usada para gerar o HMAC SHA1
-    const qrCodeString = `${chave}|${versaoQrCode}|${tpAmb}|${idCSC}`;
-
-    // Gera o hash com HMAC usando o CSC como chave
+    const stringParaAssinar = `${chave}|${versaoQrCode}|${tpAmb}|${idCSC}|${cscToken}`;
     const cHashQRCode = crypto
       .createHmac("sha1", cscToken)
-      .update(qrCodeString)
+      .update(stringParaAssinar)
       .digest("hex")
       .toUpperCase();
 
-    // Monta a URL final do QR Code
-    const qrCodeFinal = `${baseUrl}?p=${qrCodeString}|${cHashQRCode}`;
+    const qrCodeFinal = `${baseUrl}?p=${chave}|${versaoQrCode}|${tpAmb}|${idCSC}|${cHashQRCode}`;
 
-    // Monta a URL de consulta usada no <urlChave>
     const urlChave = baseUrl
       .replace(/^https?:\/\//, "")
       .replace(/\?.*$/, "")
       .replace("/qrcode", "/consulta");
 
-    // Log para depuração
-    fs.appendFileSync(logFilePath, `\nbaseUrl: ${baseUrl}\n`)
-    fs.appendFileSync(logFilePath, `chave: ${chave}\n`)
-    fs.appendFileSync(logFilePath, `versaoQrCode: ${versaoQrCode}\n`)
-    fs.appendFileSync(logFilePath, `tpAmb: ${tpAmb}\n`)
-    fs.appendFileSync(logFilePath, `idCSC: ${idCSC}\n`)
-    fs.appendFileSync(logFilePath, `cscToken: ${cscToken}\n`)
-    fs.appendFileSync(logFilePath, `cHashQRCode: ${cHashQRCode}\n`)
+    // Logs para debug
+    fs.appendFileSync(logFilePath, `CSC ID: ${idCSC} | CSC Token: ${empresa.cscToken}\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `cHashQRCode: ${cHashQRCode}\n`, "utf-8");
     fs.appendFileSync(logFilePath, `🔗 QR Code Final: ${qrCodeFinal}\n`, "utf-8");
     fs.appendFileSync(logFilePath, `🔗 urlChave: ${urlChave}\n`, "utf-8");
 
@@ -279,109 +268,77 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
 
     await createXmlTable(connection);
 
-    const xml = generateXml(dados).trim();
-    const xmlNaoAssinado = generateXml(dados).trim();
 
-    const assinado = assinarXml(xml, privateKeyPem, certificatePem, dados.chave).trim();
+    // 1. Gera XML base da NFe
+    const xmlBase = generateXml(dados).trim();
+    console.log("xmlBase:", xmlBase);
 
-    const timestamp2 = Date.now();
+    // 2. Assina o XML
+    const assinado = assinarXml(xmlBase, privateKeyPem, certificatePem, dados.chave).trim();
+    console.log("assinado:", assinado);
 
-    let testeXmlNaoAssinado = `estruturaXml-${vendaID}-${timestamp2}.xml`
+    // 3. Envia para a SEFAZ sem o infNFeSupl
+    const resposta = await enviarXmlParaSefaz(assinado, certificatePem, privateKeyPem, empresa.UF);
+    console.log("resposta:", resposta);
+    fs.appendFileSync(logFilePath, `📨 Resposta da SEFAZ:\n${resposta}\n\n`, "utf-8");
 
-    const conteudoFinal = assinado.replace(/^[\s\S]*?(<NFe[\s\S]*<\/NFe>)/, "$1").trim();
-    const resposta = await enviarXmlParaSefaz(conteudoFinal, certificatePem, privateKeyPem, empresa.UF);
-
-    const matchRecibo = resposta.match(/<nRec>(.*?)<\/nRec>/);
+    // 4. Extrai dados da resposta
+    const matchRecibo = resposta.match(/<nRec>(.*?)<\/nRec>/) || resposta.match(/<infRec>[\s\S]*?<nRec>(.*?)<\/nRec>/);
     const matchMotivo = resposta.match(/<xMotivo>(.*?)<\/xMotivo>/);
     const matchStatus = resposta.match(/<cStat>(.*?)<\/cStat>/);
     let matchProtocolo = resposta.match(/<protNFe[\s\S]*?<\/protNFe>/);
+    let protocolo = matchProtocolo?.[0];
 
     console.log("🧩 Matchs iniciais:");
     console.log("➡️ matchRecibo:", !!matchRecibo);
     console.log("➡️ matchProtocolo:", !!matchProtocolo);
+    fs.appendFileSync(logFilePath, `matchRecibo: ${!!matchRecibo}\n`, "utf-8");
+    fs.appendFileSync(logFilePath, `matchProtocolo: ${!!matchProtocolo}\n\n`, "utf-8");
 
-    fs.appendFileSync(logFilePath, `matchRecibo: ${!!matchRecibo}\n\n\n`, "utf-8");
-    fs.appendFileSync(logFilePath, `matchProtocolo: ${!!matchProtocolo}\n\n\n`, "utf-8");
+    // 5. Tenta obter protocolo via fallback (caso status seja 104 mas sem protocolo)
+    if (!matchProtocolo && matchStatus?.[1] === '104') {
+      console.log("⚠️ Status 104 mas sem protocolo. Tentando fallback...");
 
-    let protocolo = matchProtocolo?.[0];
-    let xmlFinal = conteudoFinal;
-
-    if (!protocolo && matchRecibo) {
-      console.log("🔍 Protocolo não encontrado, consultando recibo...");
-      const consulta = await consultarRecibo(matchRecibo[1], certificatePem, privateKeyPem, empresa.UF);
-      console.log("🧾 Resultado da consulta:", consulta);
-      fs.appendFileSync(logFilePath, `🧾 Resultado da consulta: ${consulta}\n\n\n`, "utf-8");
-
-      if (consulta.sucesso && consulta.protocolo) {
-        protocolo = consulta.protocolo;
-        matchProtocolo = [consulta.protocolo];
-        console.log("✅ Protocolo obtido via consulta:", protocolo);
-        fs.appendFileSync(logFilePath, `Protocolo obtido via consulta: ${protocolo}\n\n\n`, "utf-8");
-      } else {
-        console.warn("⚠️ Consulta de recibo falhou ou não retornou protocolo.");
-        fs.appendFileSync(logFilePath, `Consulta de recibo falhou ou não retornou protocolo.\n\n\n`, "utf-8");
-      }
-    }
-
-    let infNFeSuplXml
-
-    if (matchProtocolo) {
-      infNFeSuplXml = create()
-        .ele("infNFeSupl")
-        .ele("qrCode").txt(qrCodeFinal).up()
-        .ele("urlChave").txt(urlChave).up()
-        .up()
-        .end({ prettyPrint: false });
-
-      console.log("🔗 infNFeSuplXml gerado com QR Code.");
-      fs.appendFileSync(logFilePath, `🔗 infNFeSuplXml gerado com QR Code.\n\n\n`, "utf-8");
-      xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
-    } else {
-      console.warn("❌ matchProtocolo não definido. Não será gerado XML final com QR Code.");
-      fs.appendFileSync(logFilePath, `❌ matchProtocolo não definido. Não será gerado XML final com QR Code.\n\n\n`, "utf-8");
-    }
-
-    await saveProtocol(connection, dados.chave, protocolo || "");
-
-    const timestamp = Date.now();
-    const nomeArquivo = `xml-final-${vendaID}-${timestamp}.xml`;
-    await connection.query(
-      `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
-      [nomeArquivo, Buffer.byteLength(xmlFinal, "utf-8"), xmlFinal]
-    );
-
-    if (matchRecibo) {
-      fs.appendFileSync(logFilePath, `📦 Recibo retornado: ${matchRecibo[1]}\n\n\n\n`, "utf-8");
-    } else {
-      if (matchStatus && matchMotivo) {
-        const status = matchStatus[1];
-        const motivo = matchMotivo[1];
-
-        fs.appendFileSync(logFilePath, `❌ Rejeição ${status}: ${motivo}\n\n\n\n`, "utf-8");
-
-        if ((status === "104" || status === "213") && matchProtocolo && infNFeSuplXml) {
-          fs.appendFileSync(logFilePath, `📄 Protocolo extraído:\n${matchProtocolo[0]}\n\n\n\n`, "utf-8");
-
-          await saveProtocol(connection, chave, matchProtocolo[0]);
-
-          xmlFinal = gerarNfeProc(conteudoFinal, matchProtocolo[0], infNFeSuplXml);
-
-          const nomeFinal = `xml-autorizado-${vendaID}-${timestamp}.xml`;
-
-          await connection.query(
-            `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
-            [testeXmlNaoAssinado, Buffer.byteLength(xmlNaoAssinado, "utf-8"), xmlNaoAssinado]
-          );
-
-          await connection.query(
-            `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
-            [nomeFinal, Buffer.byteLength(xmlFinal, "utf-8"), xmlFinal]
-          );
+      const reciboFallback = matchRecibo?.[1];
+      if (reciboFallback) {
+        const consulta = await consultarRecibo(reciboFallback, certificatePem, privateKeyPem, empresa.UF);
+        if (consulta.sucesso && consulta.protocolo) {
+          protocolo = consulta.protocolo;
+          matchProtocolo = [consulta.protocolo];
+          fs.appendFileSync(logFilePath, `✅ Protocolo via fallback: ${protocolo}\n\n`, "utf-8");
+        } else {
+          fs.appendFileSync(logFilePath, `❌ Fallback falhou\n\n`, "utf-8");
         }
       }
     }
 
-    return { sucesso: true };
+    // 6. Gera XML final com infNFeSupl e protocolo
+    if (matchProtocolo) {
+      await saveProtocol(connection, dados.chave, protocolo);
+
+      const xmlComSupl = adicionarInfNFeSupl(assinado, qrCodeFinal, urlChave);
+      const xmlFinal = gerarNfeProc(xmlComSupl, matchProtocolo[0]);
+
+      const timestamp = Date.now();
+      const nomeFinal = `xml-final-${vendaID}-${timestamp}.xml`;
+
+      await connection.query(
+        `INSERT INTO xmls_gerados (nome, tamanho, conteudo) VALUES ($1, $2, $3)`,
+        [nomeFinal, Buffer.byteLength(xmlFinal, "utf-8"), xmlFinal]
+      );
+
+      if (matchRecibo) {
+        fs.appendFileSync(logFilePath, `📦 Recibo retornado: ${matchRecibo[1]}\n`, "utf-8");
+      }
+
+      return { sucesso: true };
+    }
+
+    // 7. Se não houver protocolo válido
+    const motivo = matchMotivo?.[1] || "Protocolo não encontrado";
+    fs.appendFileSync(logFilePath, `❌ Erro final: ${motivo}\n\n`, "utf-8");
+    return { sucesso: false, erro: `Erro: ${motivo}` };
+
   } catch (e) {
     fs.appendFileSync(logFilePath, `ERRO: ${e.stack || e.message}\n\n\n\n`, "utf-8");
     return { sucesso: false, erro: e.stack || e.message };
