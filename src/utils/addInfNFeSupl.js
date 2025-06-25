@@ -10,25 +10,24 @@ function adicionarInfNFeSupl(xmlAssinado, qrCode, urlChave) {
     throw new Error('❌ Erro ao localizar <NFe> ou <Signature> no XML assinado.');
   }
 
-  const infNFeSupl = doc.createElement('infNFeSupl');
+  const namespace = "http://www.portalfiscal.inf.br/nfe";
 
-  const qrNode = doc.createElement('qrCode');
+  const infNFeSupl = doc.createElementNS(namespace, 'infNFeSupl');
+
+  const qrNode = doc.createElementNS(namespace, 'qrCode');
   qrNode.textContent = qrCode;
 
-  const urlNode = doc.createElement('urlChave');
+  const urlNode = doc.createElementNS(namespace, 'urlChave');
   urlNode.textContent = urlChave;
 
   infNFeSupl.appendChild(qrNode);
   infNFeSupl.appendChild(urlNode);
 
-  // Inserir infNFeSupl após a tag <Signature>
-  if (signatureNode.nextSibling) {
-    nfeNode.insertBefore(infNFeSupl, signatureNode.nextSibling);
-  } else {
-    nfeNode.appendChild(infNFeSupl);
-  }
+  // Inserir o infNFeSupl ANTES da tag <Signature>
+  nfeNode.insertBefore(infNFeSupl, signatureNode);
 
   return new XMLSerializer().serializeToString(doc);
 }
 
-module.exports = adicionarInfNFeSupl;
+
+module.exports = adicionarInfNFeSupl

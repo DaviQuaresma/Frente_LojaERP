@@ -168,7 +168,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
         vTotTrib: (icms + ipi + st).toFixed(2),
       });
 
-      vProd += totalItem;
+      vProd += parseFloat(item.ite_total || 0);
       vBC += bc;
       vICMS += icms;
       vIPI += ipi;
@@ -204,7 +204,7 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
       },
       prod: produtosXml[0],
       imposto: {
-        vTotTrib: "8.01",
+        vTotTrib: vTotTrib.toFixed(2),
         ICMS: {
           orig: "0",
           CSOSN: "102"
@@ -267,7 +267,6 @@ module.exports = async function fiscalMain(vendaID, certificadoManual) {
     };
 
     await createXmlTable(connection);
-
 
     // 1. Gera XML base da NFe
     const xmlBase = generateXml(dados).trim();
