@@ -14,7 +14,6 @@ const {
 	checkRequiredColumns,
 } = require("../utils/dbCommands");
 
-const mainFiscal = require("../fiscalModules/main");
 const { getNewClient } = require("../db/getNewClient");
 
 function shuffleArray(array) {
@@ -182,7 +181,7 @@ async function createSale(valorAlvo) {
 				throw new Error("Certificado não definido.");
 			}
 
-			await mainFiscal(vendaId, certificadoAtivo);
+			// await mainFiscal(vendaId, certificadoAtivo);
 
 			return "Operação realizada com sucesso!";
 		} catch (error) {
