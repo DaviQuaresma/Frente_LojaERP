@@ -282,7 +282,7 @@ async function checkRequiredColumns(connection) {
 
 	if (missingColumns.length > 0) {
 		throw new Error(
-			` Campos ausentes no banco: ${missingColumns.join(", ")}`
+			`❌ Campos ausentes no banco: ${missingColumns.join(", ")}`
 		);
 	}
 }
@@ -406,61 +406,6 @@ async function getItensVendaByPedido(connection, ven_cod_pedido) {
 	return rows;
 }
 
-
-async function getProducts(connection) {
-	const { rows } = await connection.query(`
-     SELECT DISTINCT
-      p.pro_codigo,
-      p.pro_descricao,
-      p.pro_unidade,
-      p.pro_preco_custo,
-      p.pro_preco_venda,
-      p.pro_lucro,
-      p.pro_codigo_ean,
-      p.pro_codigo_fiscal,
-      p.pro_peso_bruto,
-      p.pro_peso,
-      COALESCE(ees.ees_ax_saldo, 0) AS estoque
-    FROM
-      produto p
-    INNER JOIN
-      estoque_empresa_saldo ees ON ees.pro_codigo = p.pro_codigo
-    WHERE
-      COALESCE(ees.ees_ax_saldo, 0) >= 10
-      AND (p.atualizado IS NULL OR p.atualizado = 'N')
-    ORDER BY
-      p.pro_codigo;
-  `
-	);
-	return rows;
-}
-
-async function getProductsSync(connection) {
-	const { rows } = await connection.query(`
-    SELECT
-      p.pro_codigo,
-      p.pro_descricao,
-      p.pro_preco_custo,
-      p.pro_preco_venda,
-      p.pro_unidade,
-      p.pro_codigo_ean,
-      p.pro_codigo_fiscal,
-      p.pro_peso,
-      p.pro_peso_bruto,
-      p.pro_lucro,
-      ees.ees_ax_saldo AS estoque
-    FROM
-      produto p
-    INNER JOIN
-      estoque_empresa_saldo ees ON ees.pro_codigo = p.pro_codigo
-    WHERE
-      COALESCE(ees.ees_ax_saldo, 0) >= 1
-  `);
-
-	return rows;
-}
-
-
 module.exports = {
 	updateStock,
 	insertSale,
@@ -475,6 +420,4 @@ module.exports = {
 	getCertificadoData,
 	getVendaById,
 	getItensVendaByPedido,
-	getProducts,
-	getProductsSync
 };

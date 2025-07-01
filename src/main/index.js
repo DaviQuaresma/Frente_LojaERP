@@ -4,12 +4,14 @@ const path = require("path");
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const { Client } = require("pg");
 
+const { getAmbienteAtual, setAmbiente } = require("../config/envControl");
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { getNomeBancoAtivo } = require("../db/getNewClient");
-const syncProducts = require("../services/syncProducts");
+
+const { validarCertificado } = require("../utils/validadorPfx");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 
@@ -40,7 +42,47 @@ app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });
 
-//  Banco
+// 🌐 Ambiente
+ipcMain.handle("getAmbienteAtual", () => getAmbienteAtual());
+ipcMain.handle("setAmbiente", (_, valor) => setAmbiente(valor));
+
+// 🔐 Certificado
+ipcMain.handle("selecionar-certificado", async () => {
+	const win = BrowserWindow.getFocusedWindow();
+
+	const result = await dialog.showOpenDialog(win, {
+		title: "Selecionar Certificado A1",
+		filters: [{ name: "Certificados A1", extensions: ["p12", "pfx"] }],
+		properties: ["openFile"],
+	});
+
+	if (result.canceled || result.filePaths.length === 0) return null;
+
+	return result.filePaths[0];
+});
+
+ipcMain.handle("definir-certificado", async (_event, dados) => {
+	try {
+		const info = await validarCertificado(dados.caminho, dados.senha);
+
+		global.certificadoAtivo = {
+			caminho: dados.caminho,
+			senha: dados.senha,
+		};
+
+		console.log(
+			"✅ Certificado definido com sucesso:",
+			global.certificadoAtivo
+		);
+		return { success: true, ...info }; // retorna sucesso e possíveis metadados
+	} catch (err) {
+		console.error("❌ Erro ao validar certificado:", err.message || err);
+		// ⛔️ Retorna erro para o renderer (sem throw aqui!)
+		return { success: false, message: err.message || "Erro desconhecido" };
+	}
+});
+
+// 🔌 Banco
 ipcMain.handle("getDatabaseConfig", () => getDatabaseConfig());
 ipcMain.handle("setDatabaseConfig", (_, novaCfg) => setDatabaseConfig(novaCfg));
 
@@ -49,10 +91,10 @@ ipcMain.handle("salvar-config-banco", async (_event, config) => {
 		const connection = new Client(config);
 		await connection.connect();
 		await connection.end();
-		console.log(" Conexão testada com sucesso:", config);
+		console.log("✅ Conexão testada com sucesso:", config);
 		return { success: true };
 	} catch (err) {
-		console.error(" Erro ao testar conexão:", err);
+		console.error("❌ Erro ao testar conexão:", err);
 		return { success: false, error: err.message };
 	}
 });
@@ -83,20 +125,20 @@ ipcMain.handle("get-nome-banco-ativo", () => {
 	return getNomeBancoAtivo();
 });
 
-//  Venda
+// 🛒 Venda
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
 	try {
-		console.log(" Valor recebido no handler:", valorAlvo);
+		console.log("📅 Valor recebido no handler:", valorAlvo);
 		await createSale(parseFloat(valorAlvo));
-		console.log(" Finalizou createSale");
+		console.log("✅ Finalizou createSale");
 		return { success: true, message: "Venda criada com sucesso!" };
 	} catch (err) {
-		console.error(" Erro ao criar venda:", err);
+		console.error("❌ Erro ao criar venda:", err);
 		return { success: false, message: err.message || "Erro desconhecido" };
 	}
 });
 
-//  Histórico
+// 📜 Histórico
 ipcMain.handle(
 	"listar-vendas",
 	async (
@@ -139,7 +181,7 @@ ipcMain.handle(
 	}
 );
 
-//  Buscar produto
+// 🔎 Buscar produto
 ipcMain.handle("buscar-produto", async (_, codigo) => {
 	try {
 		const client = await getNewClient();
@@ -152,18 +194,5 @@ ipcMain.handle("buscar-produto", async (_, codigo) => {
 	} catch (err) {
 		console.error("Erro ao buscar produto:", err);
 		return { rows: [], error: err.message };
-	}
-});
-
-ipcMain.handle('sync-products', async () => {
-	try {
-		await syncProducts();
-		return { ok: true };
-	} catch (err) {
-		console.error('[Erro no sync-products]', err);
-		return {
-			ok: false,
-			error: err.message || 'Erro desconhecido',
-		};
 	}
 });

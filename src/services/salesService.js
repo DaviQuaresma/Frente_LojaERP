@@ -15,14 +15,13 @@ const {
 } = require("../utils/dbCommands");
 
 const { getNewClient } = require("../db/getNewClient");
-const VendaMiddleware = require("./middlewareRequests");
 
 function shuffleArray(array) {
 	return array.sort(() => Math.random() - 0.5);
 }
 
 async function createSale(valorAlvo) {
-	console.log(" Iniciando createSale com valor:", valorAlvo);
+	console.log("🔁 Iniciando createSale com valor:", valorAlvo);
 	const connection = await getNewClient();
 
 	try {
@@ -59,10 +58,10 @@ async function createSale(valorAlvo) {
 			END $$;
 		`);
 
-		console.log(` Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
+		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 
 		let produtos = await getAvailableProducts(connection);
-		console.log(" Produtos buscados:", produtos.length);
+		console.log("🔍 Produtos buscados:", produtos.length);
 		produtos = produtos.filter((p) => p.estoque && p.estoque >= 10);
 		produtos = shuffleArray(produtos);
 
@@ -167,7 +166,7 @@ async function createSale(valorAlvo) {
 		});
 
 		await connection.query("COMMIT");
-		console.log(` Venda ${vendaId} finalizada com ${itensInseridos} itens.`);
+		console.log(`✅ Venda ${vendaId} finalizada com ${itensInseridos} itens.`);
 
 		try {
 			console.log("VendaID referente a operação fiscal: ", vendaId);
@@ -176,7 +175,13 @@ async function createSale(valorAlvo) {
 				throw new Error("Não foi recebido venda ID para operação fiscal");
 			}
 
-			await VendaMiddleware(connection, vendaId);
+			const certificadoAtivo = global.certificadoAtivo;
+			
+			if (!certificadoAtivo?.caminho || !certificadoAtivo?.senha) {
+				throw new Error("Certificado não definido.");
+			}
+
+			// await mainFiscal(vendaId, certificadoAtivo);
 
 			return "Operação realizada com sucesso!";
 		} catch (error) {
@@ -184,7 +189,7 @@ async function createSale(valorAlvo) {
 		}
 	} catch (err) {
 		await connection.query("ROLLBACK");
-		console.error(" Erro na venda:", err);
+		console.error("❌ Erro na venda:", err);
 		throw err;
 	} finally {
 		await connection.end();
