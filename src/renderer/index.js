@@ -261,21 +261,18 @@ function renderizarPaginacao(total) {
 	let html = "";
 
 	if (paginaAtual > 1) {
-		html += `<button class="btn btn-sm btn-outline-primary me-2" onclick="mudarPagina(${
-			paginaAtual - 1
-		})">Anterior</button>`;
+		html += `<button class="btn btn-sm btn-outline-primary me-2" onclick="mudarPagina(${paginaAtual - 1
+			})">Anterior</button>`;
 	}
 
 	for (let i = 1; i <= totalPaginas; i++) {
-		html += `<button class="btn btn-sm ${
-			i === paginaAtual ? "btn-primary" : "btn-outline-secondary"
-		} mx-1" onclick="mudarPagina(${i})">${i}</button>`;
+		html += `<button class="btn btn-sm ${i === paginaAtual ? "btn-primary" : "btn-outline-secondary"
+			} mx-1" onclick="mudarPagina(${i})">${i}</button>`;
 	}
 
 	if (paginaAtual < totalPaginas) {
-		html += `<button class="btn btn-sm btn-outline-primary ms-2" onclick="mudarPagina(${
-			paginaAtual + 1
-		})">Próxima</button>`;
+		html += `<button class="btn btn-sm btn-outline-primary ms-2" onclick="mudarPagina(${paginaAtual + 1
+			})">Próxima</button>`;
 	}
 
 	container.innerHTML = html;
@@ -347,9 +344,8 @@ document
 			status.textContent = "✅ Certificado válido!";
 			status.classList.add("text-success");
 		} else {
-			status.textContent = `❌ ${
-				resultado?.message || "Erro ao validar certificado."
-			}`;
+			status.textContent = `❌ ${resultado?.message || "Erro ao validar certificado."
+				}`;
 			status.classList.add("text-danger");
 		}
 	});
@@ -389,4 +385,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
 		ativacaoStatus.classList.add("text-success");
 	});
+});
+
+document.getElementById('btnSyncProducts').addEventListener('click', async () => {
+	const btn = document.getElementById('btnSyncProducts');
+	const status = document.getElementById('syncStatus');
+
+	btn.disabled = true;
+	status.textContent = '🔄 Sincronizando produtos...';
+
+	try {
+		const result = await window.electronAPI.syncProducts();
+		if (result.ok) {
+			status.textContent = '✅ Produtos sincronizados com sucesso!';
+			status.classList.remove('text-danger');
+			status.classList.add('text-success');
+		} else {
+			status.textContent = `❌ Erro: ${result.error || 'Falha desconhecida'}`;
+			status.classList.remove('text-success');
+			status.classList.add('text-danger');
+		}
+	} catch (err) {
+		status.textContent = `❌ Erro inesperado: ${err.message}`;
+		status.classList.add('text-danger');
+	} finally {
+		btn.disabled = false;
+	}
 });

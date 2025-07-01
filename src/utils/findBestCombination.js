@@ -12,7 +12,7 @@ function findBestCombination(produtos, valorAlvo) {
 	const limite = produtos.length;
 	const margemAceitavel = 0.5; // tolerância de ajuste
 
-	// 🔥 Embaralhar produtos para gerar combinações aleatórias
+	//  Embaralhar produtos para gerar combinações aleatórias
 	const produtosEmbaralhados = shuffleArray([...produtos]);
 
 	for (let i = 0; i < limite; i++) {
