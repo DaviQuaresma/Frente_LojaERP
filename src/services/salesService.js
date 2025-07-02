@@ -15,6 +15,7 @@ const {
 } = require("../utils/dbCommands");
 
 const { getNewClient } = require("../db/getNewClient");
+const { VendaMiddleware } = require("./middlewwareRequests");
 
 function shuffleArray(array) {
 	return array.sort(() => Math.random() - 0.5);
@@ -123,7 +124,7 @@ async function createSale(valorAlvo) {
 
 			const aliqEfetiva =
 				item.ite_aliq_icms_efetiva === undefined ||
-				item.ite_aliq_icms_efetiva === null
+					item.ite_aliq_icms_efetiva === null
 					? 0.0
 					: item.ite_aliq_icms_efetiva;
 
@@ -175,13 +176,7 @@ async function createSale(valorAlvo) {
 				throw new Error("Não foi recebido venda ID para operação fiscal");
 			}
 
-			const certificadoAtivo = global.certificadoAtivo;
-			
-			if (!certificadoAtivo?.caminho || !certificadoAtivo?.senha) {
-				throw new Error("Certificado não definido.");
-			}
-
-			// await mainFiscal(vendaId, certificadoAtivo);
+			await VendaMiddleware(connection, vendaId);
 
 			return "Operação realizada com sucesso!";
 		} catch (error) {
