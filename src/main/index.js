@@ -1,14 +1,16 @@
 /** @format */
 
 const path = require("path");
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const { Client } = require("pg");
+const fs = require('fs');
 
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { getNomeBancoAtivo } = require("../db/getNewClient");
 const syncProducts = require("../services/syncProducts");
+const { validateToken } = require("../services/middlewwareRequests");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 
@@ -164,5 +166,36 @@ ipcMain.handle('sync-products', async () => {
 			ok: false,
 			error: err.message || 'Erro desconhecido',
 		};
+	}
+});
+
+const configDir = path.join(__dirname, 'config');
+const configFilePath = path.join(configDir, 'token.json');
+
+ipcMain.handle('salvar-token', async (_, token) => {
+	try {
+		if (!fs.existsSync(configDir)) {
+			fs.mkdirSync(configDir, { recursive: true });
+		}
+		fs.writeFileSync(configFilePath, JSON.stringify({ token }, null, 2), 'utf-8');
+		console.log('🔐 Token salvo com sucesso em', configFilePath);
+		return { ok: true };
+	} catch (err) {
+		console.error('[Erro ao salvar token]', err);
+		return { ok: false, error: err.message };
+	}
+});
+
+ipcMain.handle('testar-e-salvar-token', async (_, token) => {
+	try {
+		if (!fs.existsSync(configDir)) {
+			fs.mkdirSync(configDir, { recursive: true });
+		}
+		fs.writeFileSync(configFilePath, JSON.stringify({ token }, null, 2), 'utf-8');
+		const accessToken = await validateToken();
+		return { ok: true, token: accessToken };
+	} catch (err) {
+		console.error('[Erro ao testar/salvar token]', err);
+		return { ok: false, error: err.message };
 	}
 });

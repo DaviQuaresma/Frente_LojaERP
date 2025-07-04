@@ -372,3 +372,53 @@ document.getElementById('btnSyncProducts').addEventListener('click', async () =>
 		btn.disabled = false;
 	}
 });
+
+document.getElementById('btnSalvarToken').addEventListener('click', async () => {
+	const textarea = document.getElementById('cfg-token');
+	const tokenStatus = document.getElementById('tokenStatus');
+
+	const token = textarea.value.trim();
+
+	if (!token) {
+		tokenStatus.textContent = '❌ Token vazio.';
+		tokenStatus.classList.remove('text-success');
+		tokenStatus.classList.add('text-danger');
+		return;
+	}
+
+	const result = await window.electronAPI.salvarToken(token);
+	if (result.ok) {
+		tokenStatus.textContent = '✅ Token salvo com sucesso!';
+		tokenStatus.classList.remove('text-danger');
+		tokenStatus.classList.add('text-success');
+	} else {
+		tokenStatus.textContent = `❌ Erro ao salvar token: ${result.error}`;
+		tokenStatus.classList.remove('text-success');
+		tokenStatus.classList.add('text-danger');
+	}
+});
+
+document.getElementById('btnTestarToken').addEventListener('click', async () => {
+	const textarea = document.getElementById('cfg-token');
+	const tokenStatus = document.getElementById('tokenStatus');
+
+	const token = textarea.value.trim();
+
+	if (!token) {
+		tokenStatus.textContent = '❌ Token vazio.';
+		tokenStatus.classList.remove('text-success');
+		tokenStatus.classList.add('text-danger');
+		return;
+	}
+
+	const result = await window.electronAPI.testarESalvarToken(token);
+	if (result.ok) {
+		tokenStatus.textContent = '✅ Token salvo e validado com sucesso!';
+		tokenStatus.classList.remove('text-danger');
+		tokenStatus.classList.add('text-success');
+	} else {
+		tokenStatus.textContent = `❌ Erro ao validar token: ${result.error}`;
+		tokenStatus.classList.remove('text-success');
+		tokenStatus.classList.add('text-danger');
+	}
+});

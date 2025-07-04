@@ -17,4 +17,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
 	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
 	syncProducts: () => ipcRenderer.invoke('sync-products'),
+
+	// 🔐 Token API
+	salvarToken: (token) => ipcRenderer.invoke("salvar-token", token),
+	testarESalvarToken: (token) => ipcRenderer.invoke("testar-e-salvar-token", token),
 });

@@ -187,6 +187,17 @@
                   📂 Selecionar Banco Ativo
                 </button>
               </li>
+              <li class="nav-item">
+                <button
+                  class="nav-link"
+                  id="tab-token-api"
+                  data-bs-toggle="pill"
+                  data-bs-target="#abaTokenApi"
+                  type="button"
+                >
+                  🔐 Token API
+                </button>
+              </li>
             </ul>
 
             <div class="tab-content" id="subConfigContent">
@@ -275,6 +286,33 @@
                     id="syncStatus"
                     class="text-center fw-bold mt-3 text-muted"
                   ></div>
+                </div>
+              </div>
+              <!-- Aba Token API -->
+              <div class="tab-pane fade" id="abaTokenApi">
+                <div class="mx-auto" style="max-width: 500px">
+                  <div class="mb-3">
+                    <label for="cfg-token" class="form-label"
+                      >Token da API eGestor</label
+                    >
+                    <textarea
+                      id="cfg-token"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Cole aqui o token JWT da API do eGestor"
+                    ></textarea>
+                  </div>
+
+                  <div class="d-grid gap-2">
+                    <button id="btnSalvarToken" class="btn btn-primary">
+                      💾 Salvar Token
+                    </button>
+                    <button id="btnTestarToken" class="btn btn-success">
+                      ✅ Testar e Salvar Token
+                    </button>
+                  </div>
+
+                  <div id="tokenStatus" class="text-center fw-bold mt-3"></div>
                 </div>
               </div>
             </div>
