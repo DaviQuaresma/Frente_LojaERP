@@ -15,7 +15,7 @@ const {
 } = require("../utils/dbCommands");
 
 const { getNewClient } = require("../db/getNewClient");
-const { VendaMiddleware } = require("./middlewwareRequests");
+const { VendaMiddleware } = require("./middlewareRequests");
 
 function shuffleArray(array) {
 	return array.sort(() => Math.random() - 0.5);

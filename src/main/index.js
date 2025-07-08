@@ -10,7 +10,7 @@ const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { getNomeBancoAtivo } = require("../db/getNewClient");
 const syncProducts = require("../services/syncProducts");
-const { validateToken } = require("../services/middlewwareRequests");
+const { validateToken } = require("../services/middlewareRequests");
 
 const iconPath = path.join(__dirname, "../../logo.png");
 

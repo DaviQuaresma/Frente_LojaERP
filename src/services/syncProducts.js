@@ -3,7 +3,7 @@ const axios = require('axios');
 const pLimit = require('p-limit').default;
 const { getProductsSync } = require('../utils/dbCommands.js');
 const { getNewClient } = require('../db/getNewClient');
-const { setToken } = require('./middlewwareRequests.js');
+const { setToken } = require('./middlewareRequests');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

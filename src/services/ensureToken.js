@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { validateToken, setToken } = require("./middlewwareRequests");
+const { validateToken, setToken } = require("./middlewareRequests");
 
 async function ensureToken() {
     try {

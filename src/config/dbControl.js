@@ -46,7 +46,6 @@ function setDatabaseConfig(novaCfg) {
 	if (novaCfg.ativo) atual.ativo = novaCfg.ativo;
 
 	fs.writeFileSync(settingsPath, JSON.stringify(atual, null, 2));
-	console.log("✅ Configuração de banco salva:", atual);
 }
 
 module.exports = {
