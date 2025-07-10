@@ -25,7 +25,7 @@ async function atualizarCacheProdutos() {
     });
 
     cache = novoCache;
-    console.log("📦 Cache final:", [...cache.entries()]);
+    // console.log("📦 Cache final:", [...cache.entries()]);
     lastSync = Date.now();
 }
 
