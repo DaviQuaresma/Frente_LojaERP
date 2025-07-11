@@ -1,5 +1,3 @@
-/** @format */
-
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -16,9 +14,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 🔎 Produtos e Empresa
 	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
 	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
-	syncProducts: () => ipcRenderer.invoke('sync-products'),
+	syncProducts: () => ipcRenderer.invoke("sync-products"),
 
-	// 🔐 Token API
-	salvarToken: (token) => ipcRenderer.invoke("salvar-token", token),
-	testarESalvarToken: (token) => ipcRenderer.invoke("testar-e-salvar-token", token),
+	// 🔐 Token junto ao banco ativo
+	testarTokenParaBancoAtivo: (token) => ipcRenderer.invoke("testar-token-para-banco-ativo", token),
+	salvarTokenParaBancoAtivo: (token) => ipcRenderer.invoke("salvar-token-para-banco-ativo", token),
+
 });

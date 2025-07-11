@@ -22,67 +22,103 @@ async function atualizarTituloEmpresa() {
 	}
 }
 
-document
-	.getElementById("salvar-config-banco")
-	.addEventListener("click", async () => {
-		const host = document.getElementById("cfg-host").value.trim();
-		const port = parseInt(document.getElementById("cfg-port").value.trim());
-		const user = document.getElementById("cfg-user").value.trim();
-		const password = document.getElementById("cfg-password").value.trim();
-		const database = document.getElementById("cfg-database").value.trim();
-		const statusDiv = document.getElementById("configStatus");
+document.getElementById("btnTestarBanco").addEventListener("click", async () => {
+	await salvarBancoEToken({ apenasBanco: true });
+});
 
-		if (!host || !port || !user || !password || !database) {
-			statusDiv.textContent = "❌ Preencha todos os campos.";
-			statusDiv.className = "text-danger fw-bold text-center mt-3";
-			return;
-		}
+document.getElementById("btnTestarTokenBanco").addEventListener("click", async () => {
+	await salvarBancoEToken({ apenasToken: true });
+});
 
+document.getElementById("btnSalvarTudo").addEventListener("click", async () => {
+	await salvarBancoEToken({ tudo: true });
+});
+
+async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tudo = false }) {
+	const host = document.getElementById("cfg-host").value.trim();
+	const port = parseInt(document.getElementById("cfg-port").value.trim());
+	const user = document.getElementById("cfg-user").value.trim();
+	const password = document.getElementById("cfg-password").value.trim();
+	const database = document.getElementById("cfg-database").value.trim();
+	const token = document.getElementById("cfg-token").value.trim();
+
+	const statusDiv = document.getElementById("configStatus");
+
+	// Validações
+	if (!host || !port || !user || !password || !database) {
+		statusDiv.textContent = "❌ Preencha todos os campos do banco.";
+		statusDiv.className = "text-danger fw-bold text-center mt-3";
+		return;
+	}
+
+	if ((apenasToken || tudo) && !token) {
+		statusDiv.textContent = "❌ Token da API está vazio.";
+		statusDiv.className = "text-danger fw-bold text-center mt-3";
+		return;
+	}
+
+	// Testa e salva banco
+	if (apenasBanco || tudo) {
 		const config = { host, port, user, password, database };
 
-		// Testa a conexão
 		const resultado = await window.electronAPI.salvarConfigBanco(config);
 
 		if (!resultado.success) {
-			statusDiv.textContent = `❌ Erro: ${resultado.error}`;
+			statusDiv.textContent = `❌ Erro ao conectar no banco: ${resultado.error}`;
+			statusDiv.className = "text-danger fw-bold text-center mt-3";
+			return;
+		}
+	}
+
+	// Testa e salva token
+	if (apenasToken || tudo) {
+		const result = await window.electronAPI.testarTokenParaBancoAtivo(token);
+		if (!result.ok) {
+			statusDiv.textContent = `❌ Erro ao validar token: ${result.error}`;
 			statusDiv.className = "text-danger fw-bold text-center mt-3";
 			return;
 		}
 
-		// Busca configuração atual do arquivo db_settings.json
-		const configAtual = await window.electronAPI.getDatabaseConfig();
+		// ✅ Agora salva o token de fato no banco ativo
+		await window.electronAPI.salvarTokenParaBancoAtivo(token);
+	}
 
-		// Salva como novo banco e define como ativo
-		const novoConfig = {
-			salvos: {
-				...(configAtual.salvos || {}),
-				[database]: config,
+	// Atualiza e salva JSON completo (banco + token)
+	const configAtual = await window.electronAPI.getDatabaseConfig();
+
+	const novaConfig = {
+		salvos: {
+			...(configAtual.salvos || {}),
+			[database]: {
+				host,
+				port,
+				user,
+				password,
+				database,
+				token
 			},
-			ativo: database,
-		};
+		},
+		ativo: database,
+	};
 
-		await window.electronAPI.setDatabaseConfig(novoConfig);
+	await window.electronAPI.setDatabaseConfig(novaConfig);
 
-		statusDiv.textContent = "✅ Conexão testada e salva com sucesso!";
-		statusDiv.className = "text-success fw-bold text-center mt-3";
+	statusDiv.textContent = "✅ Configuração salva com sucesso!";
+	statusDiv.className = "text-success fw-bold text-center mt-3";
 
-		await atualizarTituloEmpresa(); // <- aqui
+	await atualizarTituloEmpresa();
 
-		setTimeout(() => {
-			ativacaoStatus.textContent = "";
-			ativacaoStatus.classList.remove("text-success");
-		}, 4000);
-
-		// Atualiza o select de bancos
-		const select = document.getElementById("selectBancoSalvo");
-		select.innerHTML = "";
-		Object.entries(novoConfig.salvos).forEach(([nome, dados]) => {
-			const option = document.createElement("option");
-			option.value = nome;
-			option.textContent = `${nome} (${dados.database})`;
-			select.appendChild(option);
-		});
+	// Atualiza dropdown de bancos
+	const select = document.getElementById("selectBancoSalvo");
+	select.innerHTML = "";
+	Object.entries(novaConfig.salvos).forEach(([nome, dados]) => {
+		const option = document.createElement("option");
+		option.value = nome;
+		option.textContent = `${nome} (${dados.database})`;
+		select.appendChild(option);
 	});
+}
+
 
 // Busca dados de um produto no banco
 async function buscarProduto(pro_codigo) {
@@ -288,29 +324,6 @@ carregarHistorico();
 atualizarTituloEmpresa();
 
 document.addEventListener("DOMContentLoaded", async () => {
-	const label = document.getElementById("ambienteLabel");
-	const botao = document.getElementById("botaoAmbiente");
-
-	const ambiente = await window.electronAPI.getAmbienteAtual();
-
-	if (ambiente === "production") {
-		label.textContent = "Produção";
-		botao.classList.remove("btn-warning");
-		botao.classList.add("btn-success");
-	} else {
-		label.textContent = "Homologação";
-		botao.classList.remove("btn-success");
-		botao.classList.add("btn-warning");
-	}
-
-	botao.addEventListener("click", async () => {
-		const novo = ambiente === "production" ? "development" : "production";
-		await window.electronAPI.setAmbiente(novo);
-		window.location.reload();
-	});
-});
-
-document.addEventListener("DOMContentLoaded", async () => {
 	const selectBanco = document.getElementById("selectBancoSalvo");
 	const btnAtivar = document.getElementById("btnAtivarBanco");
 	const ativacaoStatus = document.getElementById("ativacaoStatus");
@@ -370,55 +383,5 @@ document.getElementById('btnSyncProducts').addEventListener('click', async () =>
 		status.classList.add('text-danger');
 	} finally {
 		btn.disabled = false;
-	}
-});
-
-document.getElementById('btnSalvarToken').addEventListener('click', async () => {
-	const textarea = document.getElementById('cfg-token');
-	const tokenStatus = document.getElementById('tokenStatus');
-
-	const token = textarea.value.trim();
-
-	if (!token) {
-		tokenStatus.textContent = '❌ Token vazio.';
-		tokenStatus.classList.remove('text-success');
-		tokenStatus.classList.add('text-danger');
-		return;
-	}
-
-	const result = await window.electronAPI.salvarToken(token);
-	if (result.ok) {
-		tokenStatus.textContent = '✅ Token salvo com sucesso!';
-		tokenStatus.classList.remove('text-danger');
-		tokenStatus.classList.add('text-success');
-	} else {
-		tokenStatus.textContent = `❌ Erro ao salvar token: ${result.error}`;
-		tokenStatus.classList.remove('text-success');
-		tokenStatus.classList.add('text-danger');
-	}
-});
-
-document.getElementById('btnTestarToken').addEventListener('click', async () => {
-	const textarea = document.getElementById('cfg-token');
-	const tokenStatus = document.getElementById('tokenStatus');
-
-	const token = textarea.value.trim();
-
-	if (!token) {
-		tokenStatus.textContent = '❌ Token vazio.';
-		tokenStatus.classList.remove('text-success');
-		tokenStatus.classList.add('text-danger');
-		return;
-	}
-
-	const result = await window.electronAPI.testarESalvarToken(token);
-	if (result.ok) {
-		tokenStatus.textContent = '✅ Token salvo e validado com sucesso!';
-		tokenStatus.classList.remove('text-danger');
-		tokenStatus.classList.add('text-success');
-	} else {
-		tokenStatus.textContent = `❌ Erro ao validar token: ${result.error}`;
-		tokenStatus.classList.remove('text-success');
-		tokenStatus.classList.add('text-danger');
 	}
 });

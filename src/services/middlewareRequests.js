@@ -1,10 +1,9 @@
 require("dotenv").config();
 
-const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
 const { getVendaById, getItensVendaByPedido } = require("../utils/dbCommands");
 const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
+const { getDatabaseConfig } = require("../config/dbControl");
 
 const API_URL = process.env.API_URL;
 
@@ -17,9 +16,12 @@ async function VendaMiddleware(connection, vendaId) {
 }
 
 // ✅ Valida se o token salvo na API está funcional
-async function validateToken() {
+async function validateToken(token) {
   try {
-    const response = await axios.get(`${API_URL}/api/validar-token`);
+    const response = await axios.get(`${API_URL}/api/validar-token`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
     console.log("✅ Token válido:", response.data.token);
     return response.data.token;
   } catch (error) {
@@ -29,30 +31,26 @@ async function validateToken() {
   }
 }
 
-// 🔐 Carrega o token local salvo no Electron
-function carregarTokenLocal() {
-  const tokenPath = path.resolve(__dirname, "../main/config/token.json");
+// 🔐 Carrega o token salvo no config ativo
+async function carregarTokenLocal() {
+  const config = await getDatabaseConfig();
+  const ativo = config?.ativo;
+  const token = config?.salvos?.[ativo]?.token;
 
-  if (!fs.existsSync(tokenPath)) {
-    throw new Error("Arquivo token.json não encontrado");
+  if (!token) {
+    throw new Error("Token não encontrado na configuração do banco ativo");
   }
 
-  const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-
-  if (!tokenData.token) {
-    throw new Error("Token não encontrado no arquivo token.json");
-  }
-
-  return tokenData.token;
+  return token;
 }
 
 // 🔄 Salva o token na API e valida ele
 async function setToken() {
   try {
-    const token = carregarTokenLocal();
+    const token = await carregarTokenLocal();
 
     console.log("📨 Enviando token para API...");
-    const res = await axios.post(`http://localhost:3000/api/config/token`, { token: token });
+    const res = await axios.post(`${API_URL}/api/config/token`, { token });
 
     if (res.status !== 200) {
       throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
@@ -60,7 +58,7 @@ async function setToken() {
 
     console.log("💾 Token salvo na API com sucesso!");
 
-    const accessToken = await validateToken();
+    const accessToken = await validateToken(token);
     return accessToken;
   } catch (error) {
     const msg = error?.response?.data || error.message;
@@ -72,5 +70,5 @@ async function setToken() {
 module.exports = {
   VendaMiddleware,
   validateToken,
-  setToken
+  setToken,
 };

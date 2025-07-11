@@ -1,35 +1,34 @@
-const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
 require("dotenv").config();
 
+const { getDatabaseConfig } = require("../config/dbControl");
+
 const API_URL = process.env.API_URL;
 
-function carregarTokenLocal() {
-    const tokenPath = path.resolve(__dirname, "../main/config/token.json");
+// 🔐 Carrega o token diretamente da config do banco ativo
+async function carregarTokenLocal() {
+    const config = await getDatabaseConfig();
+    const ativo = config?.ativo;
+    const token = config?.salvos?.[ativo]?.token;
 
-    if (!fs.existsSync(tokenPath)) {
-        throw new Error("Arquivo token.json não encontrado");
+    if (!token) {
+        throw new Error("Token não encontrado na configuração do banco ativo");
     }
 
-    const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-
-    if (!tokenData.token) {
-        throw new Error("Token não encontrado no arquivo token.json");
-    }
-
-    return tokenData.token;
+    return token;
 }
 
+// ✅ Valida se o token salvo está funcional
 async function validateToken() {
     const response = await axios.get(`${API_URL}/api/validar-token`);
     return response.data.token;
 }
 
+// 🔄 Salva o token na API e valida
 async function setToken() {
-    const token = carregarTokenLocal();
+    const token = await carregarTokenLocal();
 
-    await axios.post(`http://localhost:3000/api/config/token`, { token });
+    await axios.post(`${API_URL}/api/config/token`, { token });
 
     const accessToken = await validateToken();
     return accessToken;

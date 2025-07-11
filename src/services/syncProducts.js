@@ -60,36 +60,22 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
   try {
     await sleep(1000);
 
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+
     if (produtoCache) {
-      const codigo = produtoCache.codigo;
-      await axios.put(
-        `http://localhost:3000/api/produtos/${codigo}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      await axios.put(`http://localhost:3000/api/produtos/${produtoCache.codigo}`, payload, { headers });
       logs.atualizados.push(payload.codigoProprio);
     } else {
-      await axios.post(
-        `http://localhost:3000/api/produtos`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      await axios.post(`http://localhost:3000/api/produtos`, payload, { headers });
       logs.criados.push(payload.codigoProprio);
     }
   } catch (err) {
     logs.erros.push({
       codigo: payload.codigoProprio,
-      erro: err?.response?.data || err.message
+      erro: err?.response?.data || err.message,
     });
   }
 }
@@ -97,12 +83,28 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
 async function syncProducts() {
   console.log('[IPC] Iniciando syncProducts...');
 
-  const connection = await getNewClient();
-  const produtos = await getProductsSync(connection);
-  const token = await setToken();
+  let connection, token;
+  try {
+    connection = await getNewClient();
+    token = await setToken();
+  } catch (err) {
+    console.error('❌ Erro inicial ao preparar sincronização:', err.message || err);
+    return;
+  }
+
+  let produtos = [];
+  try {
+    produtos = await getProductsSync(connection);
+    if (!produtos.length) {
+      console.log('⚠️ Nenhum produto encontrado para sincronizar.');
+      return;
+    }
+  } catch (err) {
+    console.error('❌ Erro ao buscar produtos do banco:', err.message || err);
+    return;
+  }
 
   let produtosOrdenados = [];
-
   try {
     const { data } = await axios.get(`http://localhost:3000/api/produtos`, {
       headers: {
@@ -111,15 +113,13 @@ async function syncProducts() {
       },
     });
 
-    produtosOrdenados = (data?.data || data || []).sort((a, b) => {
-      const c1 = (a.codigoProprio || '').toString().toLowerCase();
-      const c2 = (b.codigoProprio || '').toString().toLowerCase();
-      return c1.localeCompare(c2);
-    });
+    produtosOrdenados = (data?.data || data || []).sort((a, b) =>
+      (a.codigoProprio || '').toLowerCase().localeCompare((b.codigoProprio || '').toLowerCase())
+    );
 
-    console.log(` Produtos em cache (ordenados): ${produtosOrdenados.length}`);
+    console.log(`📦 Produtos no middleware: ${produtosOrdenados.length}`);
   } catch (err) {
-    console.error(' Erro ao carregar cache de produtos:', err?.response?.data || err.message);
+    console.error('❌ Erro ao carregar produtos do middleware:', err?.response?.data || err.message);
     return;
   }
 
@@ -133,15 +133,16 @@ async function syncProducts() {
   await Promise.all(tasks);
 
   console.log(`
-    Criados:     ${logs.criados.length}
-    Atualizados: ${logs.atualizados.length}
-    Ignorados:   ${logs.ignorados.length}
-    Erros:       ${logs.erros.length}
+✅ Sincronização finalizada:
+  - Criados:     ${logs.criados.length}
+  - Atualizados: ${logs.atualizados.length}
+  - Ignorados:   ${logs.ignorados.length}
+  - Erros:       ${logs.erros.length}
   `);
 
   if (logs.erros.length) {
     logs.erros.forEach(e =>
-      console.error(` [${e.codigo}]`, e.erro)
+      console.error(`❌ Erro [${e.codigo}]:`, e.erro)
     );
   }
 

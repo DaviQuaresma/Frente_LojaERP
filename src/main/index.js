@@ -169,33 +169,48 @@ ipcMain.handle('sync-products', async () => {
 	}
 });
 
-const configDir = path.join(__dirname, 'config');
-const configFilePath = path.join(configDir, 'token.json');
 
-ipcMain.handle('salvar-token', async (_, token) => {
+
+ipcMain.handle("salvar-token-para-banco-ativo", async (_event, token) => {
 	try {
-		if (!fs.existsSync(configDir)) {
-			fs.mkdirSync(configDir, { recursive: true });
+		const config = await getDatabaseConfig();
+		const ativo = config.ativo;
+
+		if (!ativo || !config.salvos[ativo]) {
+			return { ok: false, error: "Nenhum banco ativo está configurado." };
 		}
-		fs.writeFileSync(configFilePath, JSON.stringify({ token }, null, 2), 'utf-8');
-		console.log('🔐 Token salvo com sucesso em', configFilePath);
+
+		// Atualiza o token no banco ativo
+		config.salvos[ativo].token = token;
+
+		await setDatabaseConfig(config);
+		console.log(`🔐 Token salvo com sucesso para banco ativo "${ativo}"`);
 		return { ok: true };
 	} catch (err) {
-		console.error('[Erro ao salvar token]', err);
+		console.error("❌ Erro ao salvar token para banco ativo:", err);
 		return { ok: false, error: err.message };
 	}
 });
 
-ipcMain.handle('testar-e-salvar-token', async (_, token) => {
+ipcMain.handle("testar-token-para-banco-ativo", async (_event, token) => {
 	try {
-		if (!fs.existsSync(configDir)) {
-			fs.mkdirSync(configDir, { recursive: true });
+		// Testa o token (você pode usar seu validateToken aqui)
+		const accessToken = await validateToken(token);
+
+		const config = await getDatabaseConfig();
+		const ativo = config.ativo;
+
+		if (!ativo || !config.salvos[ativo]) {
+			return { ok: false, error: "Nenhum banco ativo está configurado." };
 		}
-		fs.writeFileSync(configFilePath, JSON.stringify({ token }, null, 2), 'utf-8');
-		const accessToken = await validateToken();
+
+		config.salvos[ativo].token = token;
+		await setDatabaseConfig(config);
+
+		console.log(`✅ Token validado e salvo para banco "${ativo}"`);
 		return { ok: true, token: accessToken };
 	} catch (err) {
-		console.error('[Erro ao testar/salvar token]', err);
+		console.error("❌ Erro ao testar/salvar token:", err);
 		return { ok: false, error: err.message };
 	}
 });
