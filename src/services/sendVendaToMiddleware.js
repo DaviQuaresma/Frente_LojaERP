@@ -30,8 +30,6 @@ async function sendVendaToMiddleware(venda, itens) {
         });
     }
 
-    console.log("[DEBUG] Item recebido:", JSON.stringify(produtosPayload, null, 2));
-
     const hoje = new Date();
     const dataFormatada = hoje.toISOString().split("T")[0];
 

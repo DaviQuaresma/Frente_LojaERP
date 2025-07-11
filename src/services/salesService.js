@@ -27,27 +27,14 @@ async function createSale(valorAlvo) {
 
 	try {
 		await checkRequiredColumns(connection);
+		await connection.query("BEGIN /* Início da transação de venda automática */");
 
-		await connection.query(
-			"BEGIN /* Início da transação de venda automática */"
-		);
-
-		// 1. Tabela auxiliar para log
 		await createTablesIfNotExists(connection);
-
-		// 2. Criação da sequência de NF-e, se não existir
 		await createTriggerNFC(connection);
-
-		// 3. Definir o DEFAULT automático do campo ven_numero_dfe
 		await defineDefaultNFC(connection);
-
-		// 4. Sincronizar nf_numero = ven_numero_dfe via trigger
 		await createTriggerNf_number(connection);
-
-		// 5. Trigger nos itens (proteção contra NULL e cálculo automático)
 		await dropAndCreateTrigger(connection);
 
-		// 6. Garantir que a sequência de itens exista
 		await connection.query(`
 			DO $$
 			BEGIN
@@ -71,7 +58,6 @@ async function createSale(valorAlvo) {
 		}
 
 		const combinacao = findBestCombination(produtos, valorAlvo);
-
 		if (!combinacao || combinacao.combination.length === 0) {
 			throw new Error("Não foi possível montar uma combinação de produtos.");
 		}
@@ -86,9 +72,7 @@ async function createSale(valorAlvo) {
 			if (estoqueAtual >= item.quantidade) {
 				itensValidos.push(item);
 			} else {
-				throw new Error(
-					`Estoque insuficiente para o produto ${item.pro_codigo}`
-				);
+				throw new Error(`Estoque insuficiente para o produto ${item.pro_codigo}`);
 			}
 		}
 
@@ -101,12 +85,7 @@ async function createSale(valorAlvo) {
 		const desconto = ajuste < 0 ? Math.abs(ajuste) : null;
 		const valorFinal = somaValida + (arredonda || 0) - (desconto || 0);
 
-		const vendaId = await insertSale(
-			connection,
-			valorFinal,
-			arredonda,
-			desconto
-		);
+		const vendaId = await insertSale(connection, valorFinal, arredonda, desconto);
 
 		let itensInseridos = 0;
 		for (const item of itensValidos) {
@@ -115,18 +94,7 @@ async function createSale(valorAlvo) {
 			);
 			const novoCodigo = rows[0].novo_codigo;
 
-			if (
-				item.ite_aliq_icms_efetiva === undefined ||
-				item.ite_aliq_icms_efetiva === null
-			) {
-				item.ite_aliq_icms_efetiva = 0.0;
-			}
-
-			const aliqEfetiva =
-				item.ite_aliq_icms_efetiva === undefined ||
-					item.ite_aliq_icms_efetiva === null
-					? 0.0
-					: item.ite_aliq_icms_efetiva;
+			const aliqEfetiva = item.ite_aliq_icms_efetiva ?? 0.0;
 
 			await connection.query(
 				`INSERT INTO itens_venda (
@@ -166,21 +134,20 @@ async function createSale(valorAlvo) {
 			itens: itensValidos,
 		});
 
-		await connection.query("COMMIT");
-		console.log(`✅ Venda ${vendaId} finalizada com ${itensInseridos} itens.`);
-
+		// Tenta enviar para API
 		try {
-			console.log("VendaID referente a operação fiscal: ", vendaId);
-			if (!vendaId) {
-				console.log("Não foi recebido o venda ID");
-				throw new Error("Não foi recebido venda ID para operação fiscal");
-			}
+			console.log("🛒 Enviando venda para API com vendaId:", vendaId);
+			if (!vendaId) throw new Error("Não foi recebido venda ID para operação fiscal");
 
 			await VendaMiddleware(connection, vendaId);
 
+			await connection.query("COMMIT");
+			console.log(`✅ Venda ${vendaId} finalizada com ${itensInseridos} itens.`);
 			return "Operação realizada com sucesso!";
-		} catch (error) {
-			console.log("ERRO: ", error);
+		} catch (apiError) {
+			await connection.query("ROLLBACK");
+			console.error("❌ Erro na integração com API. Transação revertida.", apiError);
+			throw apiError;
 		}
 	} catch (err) {
 		await connection.query("ROLLBACK");
@@ -190,5 +157,6 @@ async function createSale(valorAlvo) {
 		await connection.end();
 	}
 }
+
 
 module.exports = { createSale };
