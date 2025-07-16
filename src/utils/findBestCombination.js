@@ -1,5 +1,3 @@
-/** @format */
-
 function shuffleArray(array) {
 	return array.sort(() => Math.random() - 0.5);
 }
@@ -8,9 +6,8 @@ function findBestCombination(produtos, valorAlvo) {
 	let melhorCombinacao = [];
 	let melhorSoma = 0;
 	const limite = produtos.length;
-	const margemAceitavel = 0.5; // tolerância de ajuste
+	const margemAceitavel = 1.5;
 
-	// 🔥 Embaralhar produtos para gerar combinações aleatórias
 	const produtosEmbaralhados = shuffleArray([...produtos]);
 
 	for (let i = 0; i < limite; i++) {
@@ -23,13 +20,12 @@ function findBestCombination(produtos, valorAlvo) {
 			const preco = Number(produto.preco);
 			const estoque = Number(produto.estoque);
 
-			if (!preco || !estoque) continue; // Ignora produtos inválidos
+			if (!preco || !estoque) continue;
 
 			const maxQtd = Math.floor((valorAlvo - total) / preco);
 
 			if (maxQtd > 0) {
 				const qtd = Math.min(maxQtd, estoque);
-
 				if (qtd >= 1 && Number.isInteger(qtd)) {
 					carrinho.push({ ...produto, quantidade: qtd });
 					total += qtd * preco;
@@ -39,12 +35,33 @@ function findBestCombination(produtos, valorAlvo) {
 			if (total >= valorAlvo) break;
 		}
 
-		// Agora compara permitindo a margem aceitável
-		const diferenca = Math.abs(valorAlvo - total);
+		let diferenca = parseFloat((valorAlvo - total).toFixed(2));
 
-		if (total > melhorSoma && diferenca <= margemAceitavel) {
-			melhorCombinacao = carrinho;
-			melhorSoma = total;
+		// Aceita combinação com diferença dentro da margem
+		if (Math.abs(diferenca) <= margemAceitavel) {
+			// Tenta ajustar o último item para bater exatamente com o valor alvo
+			const ultimoItem = carrinho[carrinho.length - 1];
+			if (ultimoItem) {
+				const precoOriginal = Number(ultimoItem.preco);
+				const totalAtual = total;
+
+				// Aplica ajuste no preço do último item
+				const novoTotalUltimoItem = (ultimoItem.quantidade * precoOriginal) + diferenca;
+				const novoPreco = novoTotalUltimoItem / ultimoItem.quantidade;
+
+				// Valida que o preço ajustado ainda é positivo e não absurdo
+				if (novoPreco > 0 && Math.abs(novoPreco - precoOriginal) <= 1.5) {
+					ultimoItem.preco = parseFloat(novoPreco.toFixed(4));
+					total = parseFloat((totalAtual + diferenca).toFixed(2));
+					diferenca = parseFloat((valorAlvo - total).toFixed(2));
+
+					// Aceita só se a correção realmente fechou no valorAlvo
+					if (diferenca === 0 && total === valorAlvo) {
+						melhorCombinacao = carrinho;
+						melhorSoma = total;
+					}
+				}
+			}
 		}
 	}
 
@@ -54,5 +71,6 @@ function findBestCombination(produtos, valorAlvo) {
 		adjustment: parseFloat((valorAlvo - melhorSoma).toFixed(2)),
 	};
 }
+
 
 module.exports = { findBestCombination };

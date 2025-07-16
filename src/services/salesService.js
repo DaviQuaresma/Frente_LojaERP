@@ -76,15 +76,15 @@ async function createSale(valorAlvo) {
 			}
 		}
 
-		const somaValida = itensValidos.reduce(
-			(acc, item) => acc + item.preco * item.quantidade,
-			0
-		);
-		const ajuste = parseFloat((valorAlvo - somaValida).toFixed(2));
-		const arredonda = ajuste >= 0 ? ajuste : null;
-		const desconto = ajuste < 0 ? Math.abs(ajuste) : null;
-		const valorFinal = somaValida + (arredonda || 0) - (desconto || 0);
+		const somaValida = combinacao.total;
 
+		if (somaValida !== valorAlvo) {
+			throw new Error(`Valor final divergente. Esperado: ${valorAlvo}, Obtido: ${somaValida}`);
+		}
+
+		const valorFinal = somaValida;
+		const arredonda = 0;
+		const desconto = 0;
 		const vendaId = await insertSale(connection, valorFinal, arredonda, desconto);
 
 		let itensInseridos = 0;

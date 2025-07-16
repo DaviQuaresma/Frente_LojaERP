@@ -323,29 +323,6 @@ async function getEmpresaData(connection, emp_codigo) {
 	return rows[0];
 }
 
-async function getCertificadoData(connection, emp_codigo) {
-	const { rows } = await connection.query(
-		`
-		SELECT
-			cer_caminho AS "caminho",
-			cer_senha AS "senha"
-		FROM certificado
-		WHERE emp_codigo = $1 AND cer_ativo = 'Y'
-		ORDER BY cer_vencimento DESC
-		LIMIT 1
-		`,
-		[emp_codigo]
-	);
-
-	if (rows.length === 0) {
-		throw new Error(
-			`Certificado ativo para emp_codigo ${emp_codigo} não encontrado.`
-		);
-	}
-
-	return rows[0];
-}
-
 async function getVendaById(connection, ven_cod_pedido) {
 	const { rows } = await connection.query(
 		`
@@ -408,7 +385,7 @@ async function getItensVendaByPedido(connection, ven_cod_pedido) {
 
 async function getProducts(connection) {
 	const { rows } = await connection.query(`
-     SELECT DISTINCT
+    SELECT DISTINCT
       p.pro_codigo,
       p.pro_descricao,
       p.pro_unidade,
@@ -419,18 +396,20 @@ async function getProducts(connection) {
       p.pro_codigo_fiscal,
       p.pro_peso_bruto,
       p.pro_peso,
-      COALESCE(ees.ees_ax_saldo, 0) AS estoque
+      p.grp_codigo,
+      COALESCE(ees.ees_ax_saldo, 0) AS estoque,
+      nc.nc_numero AS ncm
     FROM
       produto p
     INNER JOIN
       estoque_empresa_saldo ees ON ees.pro_codigo = p.pro_codigo
+    LEFT JOIN
+      num_classificacao nc ON nc.nc_codigo = p.nc_codigo
     WHERE
-      COALESCE(ees.ees_ax_saldo, 0) >= 10
-      AND (p.atualizado IS NULL OR p.atualizado = 'N')
+      (p.atualizado IS NULL OR p.atualizado = 'N')
     ORDER BY
       p.pro_codigo;
-  `
-	);
+  `);
 	return rows;
 }
 
@@ -447,15 +426,16 @@ async function getProductsSync(connection) {
       p.pro_peso,
       p.pro_peso_bruto,
       p.pro_lucro,
-      ees.ees_ax_saldo AS estoque
+      p.grp_codigo,
+      COALESCE(ees.ees_ax_saldo, 0) AS estoque,
+      nc.nc_numero AS ncm
     FROM
       produto p
     INNER JOIN
       estoque_empresa_saldo ees ON ees.pro_codigo = p.pro_codigo
-    WHERE
-      COALESCE(ees.ees_ax_saldo, 0) >= 1
+    LEFT JOIN
+      num_classificacao nc ON nc.nc_codigo = p.nc_codigo
   `);
-
 	return rows;
 }
 
@@ -470,7 +450,6 @@ module.exports = {
 	createTriggerNf_number,
 	checkRequiredColumns,
 	getEmpresaData,
-	getCertificadoData,
 	getVendaById,
 	getItensVendaByPedido,
 	getProducts,
