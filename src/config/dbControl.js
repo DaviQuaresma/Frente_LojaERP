@@ -42,10 +42,21 @@ function setDatabaseConfig(novaCfg) {
 	garantirArquivoConfig();
 	const atual = getDatabaseConfig();
 
-	if (novaCfg.salvos) atual.salvos = novaCfg.salvos;
-	if (novaCfg.ativo) atual.ativo = novaCfg.ativo;
+	if (novaCfg.salvos) {
+		atual.salvos = {
+			...atual.salvos,
+			...novaCfg.salvos,
+		};
+		console.log("🔄 [dbControl] Atualizando salvos:", novaCfg.salvos);
+	}
+
+	if (novaCfg.ativo) {
+		atual.ativo = novaCfg.ativo;
+		console.log("✅ [dbControl] Banco ativo atualizado para:", atual.ativo);
+	}
 
 	fs.writeFileSync(settingsPath, JSON.stringify(atual, null, 2));
+	console.log("💾 [dbControl] Configuração salva em:", settingsPath);
 }
 
 module.exports = {

@@ -323,6 +323,32 @@ window.mudarPagina = function (novaPagina) {
 carregarHistorico();
 atualizarTituloEmpresa();
 
+document.getElementById('btnSyncProducts').addEventListener('click', async () => {
+	const btn = document.getElementById('btnSyncProducts');
+	const status = document.getElementById('syncStatus');
+
+	btn.disabled = true;
+	status.textContent = '🔄 Sincronizando produtos...';
+
+	try {
+		const result = await window.electronAPI.syncProducts();
+		if (result.ok) {
+			status.textContent = '✅ Produtos sincronizados com sucesso!';
+			status.classList.remove('text-danger');
+			status.classList.add('text-success');
+		} else {
+			status.textContent = `❌ Erro: ${result.error || 'Falha desconhecida'}`;
+			status.classList.remove('text-success');
+			status.classList.add('text-danger');
+		}
+	} catch (err) {
+		status.textContent = `❌ Erro inesperado: ${err.message}`;
+		status.classList.add('text-danger');
+	} finally {
+		btn.disabled = false;
+	}
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
 	const selectBanco = document.getElementById("selectBancoSalvo");
 	const btnAtivar = document.getElementById("btnAtivarBanco");
@@ -358,30 +384,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
 		ativacaoStatus.classList.add("text-success");
 	});
-});
-
-document.getElementById('btnSyncProducts').addEventListener('click', async () => {
-	const btn = document.getElementById('btnSyncProducts');
-	const status = document.getElementById('syncStatus');
-
-	btn.disabled = true;
-	status.textContent = '🔄 Sincronizando produtos...';
-
-	try {
-		const result = await window.electronAPI.syncProducts();
-		if (result.ok) {
-			status.textContent = '✅ Produtos sincronizados com sucesso!';
-			status.classList.remove('text-danger');
-			status.classList.add('text-success');
-		} else {
-			status.textContent = `❌ Erro: ${result.error || 'Falha desconhecida'}`;
-			status.classList.remove('text-success');
-			status.classList.add('text-danger');
-		}
-	} catch (err) {
-		status.textContent = `❌ Erro inesperado: ${err.message}`;
-		status.classList.add('text-danger');
-	} finally {
-		btn.disabled = false;
-	}
 });
