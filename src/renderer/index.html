@@ -152,94 +152,157 @@
         </div>
 
         <!-- Configurações -->
-        <div class="tab-pane fade" id="config" role="tabpanel">
+        <div
+          class="tab-pane fade"
+          id="config"
+          role="tabpanel"
+          aria-labelledby="config-tab"
+        >
           <div class="card shadow p-4">
-            <h4 class="mb-4 text-center">⚙️ Gerenciador de Conexões</h4>
+            <h4 class="mb-4 text-center">⚙️ Configurações do Sistema</h4>
 
-            <!-- Lista de Bancos Salvos -->
-            <div id="listaBancos" class="mb-4">
-              <!-- Será populado dinamicamente -->
-            </div>
-
-            <!-- Botões de ação -->
-            <div class="d-grid gap-2 mb-4">
-              <button class="btn btn-primary" id="btnNovaConexao">
-                ➕ Nova Conexão
-              </button>
-              <button class="btn btn-outline-primary" id="btnSyncProducts">
-                📦 Sincronizar Produtos com eGestor
-              </button>
-            </div>
-
-            <!-- Status geral -->
-            <div
-              id="configStatus"
-              class="text-center fw-bold mt-3 text-muted"
-            ></div>
-          </div>
-        </div>
-
-        <!-- Modal de Nova/Editar Conexão -->
-        <div class="modal fade" id="modalConexao" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">🔌 Nova Conexão</h5>
+            <ul
+              class="nav nav-pills mb-3 justify-content-center"
+              id="subConfigTabs"
+            >
+              <li class="nav-item">
                 <button
+                  class="nav-link active"
+                  id="tab-banco"
+                  data-bs-toggle="pill"
+                  data-bs-target="#abaBanco"
                   type="button"
-                  class="btn-close"
-                  data-bs-dismiss="modal"
-                  aria-label="Fechar"
-                ></button>
-              </div>
-              <div class="modal-body">
-                <!-- Inputs -->
-                <input
-                  class="form-control mb-2"
-                  id="input-name"
-                  placeholder="Name"
-                />
-                <input
-                  class="form-control mb-2"
-                  id="input-host"
-                  placeholder="Host"
-                />
-                <input
-                  class="form-control mb-2"
-                  id="input-port"
-                  placeholder="Porta"
-                  type="number"
-                />
-                <input
-                  class="form-control mb-2"
-                  id="input-user"
-                  placeholder="Usuário"
-                />
-                <input
-                  class="form-control mb-2"
-                  id="input-password"
-                  placeholder="Senha"
-                  type="password"
-                />
-                <input
-                  class="form-control mb-2"
-                  id="input-database"
-                  placeholder="Nome do Banco"
-                />
-                <textarea
-                  class="form-control mb-2"
-                  id="input-token"
-                  rows="3"
-                  placeholder="Token da API eGestor"
-                ></textarea>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">
-                  Cancelar
+                >
+                  🔌 Conexão com Banco
                 </button>
-                <button class="btn btn-success" id="btnSalvarConexao">
-                  Salvar Conexão
+              </li>
+              <li class="nav-item">
+                <button
+                  class="nav-link"
+                  id="tab-banco-ativo"
+                  data-bs-toggle="pill"
+                  data-bs-target="#abaBancoAtivo"
+                  type="button"
+                >
+                  📂 Selecionar Banco Ativo
                 </button>
+              </li>
+            </ul>
+
+            <div class="tab-content" id="subConfigContent">
+              <!-- Aba Banco -->
+              <div class="tab-pane fade show active" id="abaBanco">
+                <div class="mx-auto" style="max-width: 500px">
+                  <!-- Dados de conexão -->
+                  <div class="mb-3">
+                    <label for="cfg-host" class="form-label">Host</label>
+                    <input
+                      id="cfg-host"
+                      class="form-control"
+                      placeholder="Ex: localhost"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="cfg-port" class="form-label">Porta</label>
+                    <input
+                      id="cfg-port"
+                      class="form-control"
+                      type="number"
+                      placeholder="5432"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="cfg-user" class="form-label">Usuário</label>
+                    <input
+                      id="cfg-user"
+                      class="form-control"
+                      placeholder="postgres"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="cfg-password" class="form-label">Senha</label>
+                    <input
+                      id="cfg-password"
+                      class="form-control"
+                      type="password"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="cfg-database" class="form-label"
+                      >Nome do Banco</label
+                    >
+                    <input
+                      id="cfg-database"
+                      class="form-control"
+                      placeholder="demonstracao"
+                    />
+                  </div>
+
+                  <!-- Token da API -->
+                  <hr />
+                  <div class="mb-3">
+                    <label for="cfg-token" class="form-label"
+                      >Token da API eGestor</label
+                    >
+                    <textarea
+                      id="cfg-token"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Cole aqui o token JWT da API do eGestor"
+                    ></textarea>
+                  </div>
+
+                  <!-- Botões de ação -->
+                  <div class="d-grid gap-2">
+                    <button id="btnTestarBanco" class="btn btn-outline-primary">
+                      🧪 Testar e Salvar Conexão com Banco
+                    </button>
+                    <button
+                      id="btnTestarTokenBanco"
+                      class="btn btn-success w-100"
+                    >
+                      🔐 Testar e Salvar Token da API
+                    </button>
+                    <button id="btnSalvarTudo" class="btn btn-primary">
+                      💾 Salvar Tudo (Banco + Token)
+                    </button>
+                  </div>
+
+                  <!-- Status geral -->
+                  <div
+                    id="configStatus"
+                    class="text-center fw-bold mt-3 text-muted"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Aba Selecionar Banco Ativo -->
+              <div class="tab-pane fade" id="abaBancoAtivo">
+                <div class="mx-auto" style="max-width: 500px">
+                  <h5 class="text-center mb-3">Selecione um Banco Salvo</h5>
+                  <select
+                    id="selectBancoSalvo"
+                    class="form-select mb-3"
+                  ></select>
+                  <button id="btnAtivarBanco" class="btn btn-success w-100">
+                    Ativar Banco Selecionado
+                  </button>
+                  <div
+                    id="ativacaoStatus"
+                    class="text-center fw-bold mt-3"
+                  ></div>
+                  <hr class="my-4" />
+                  <button
+                    id="btnSyncProducts"
+                    class="btn btn-outline-primary w-100"
+                  >
+                    📦 Sincronizar Produtos com eGestor
+                  </button>
+                  <div
+                    id="syncStatus"
+                    class="text-center fw-bold mt-3 text-muted"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>

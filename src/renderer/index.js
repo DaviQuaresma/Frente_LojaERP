@@ -10,8 +10,6 @@ const btnAtivarBanco = document.getElementById("btnAtivarBanco");
 let paginaAtual = 1;
 const limitePorPagina = 10;
 let produtosSemEstoque = [];
-let conexaoEditando = null;
-let modal = null;
 
 // Atualiza nome da empresa no topo
 async function atualizarTituloEmpresa() {
@@ -23,6 +21,104 @@ async function atualizarTituloEmpresa() {
 		console.warn("⚠️ Erro ao atualizar nome do banco:", e);
 	}
 }
+
+document.getElementById("btnTestarBanco").addEventListener("click", async () => {
+	await salvarBancoEToken({ apenasBanco: true });
+});
+
+document.getElementById("btnTestarTokenBanco").addEventListener("click", async () => {
+	await salvarBancoEToken({ apenasToken: true });
+});
+
+document.getElementById("btnSalvarTudo").addEventListener("click", async () => {
+	await salvarBancoEToken({ tudo: true });
+});
+
+async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tudo = false }) {
+	const host = document.getElementById("cfg-host").value.trim();
+	const port = parseInt(document.getElementById("cfg-port").value.trim());
+	const user = document.getElementById("cfg-user").value.trim();
+	const password = document.getElementById("cfg-password").value.trim();
+	const database = document.getElementById("cfg-database").value.trim();
+	const token = document.getElementById("cfg-token").value.trim();
+
+	const statusDiv = document.getElementById("configStatus");
+
+	// Validações
+	if (!host || !port || !user || !password || !database) {
+		statusDiv.textContent = "❌ Preencha todos os campos do banco.";
+		statusDiv.className = "text-danger fw-bold text-center mt-3";
+		return;
+	}
+
+	if ((apenasToken || tudo) && !token) {
+		statusDiv.textContent = "❌ Token da API está vazio.";
+		statusDiv.className = "text-danger fw-bold text-center mt-3";
+		return;
+	}
+
+	// Testa e salva banco
+	if (apenasBanco || tudo) {
+		const config = { host, port, user, password, database };
+
+		const resultado = await window.electronAPI.salvarConfigBanco(config);
+
+		if (!resultado.success) {
+			statusDiv.textContent = `❌ Erro ao conectar no banco: ${resultado.error}`;
+			statusDiv.className = "text-danger fw-bold text-center mt-3";
+			return;
+		}
+	}
+
+	// Testa e salva token
+	if (apenasToken || tudo) {
+		const result = await window.electronAPI.testarTokenParaBancoAtivo(token);
+		if (!result.ok) {
+			statusDiv.textContent = `❌ Erro ao validar token: ${result.error}`;
+			statusDiv.className = "text-danger fw-bold text-center mt-3";
+			return;
+		}
+
+		// ✅ Agora salva o token de fato no banco ativo
+		await window.electronAPI.salvarTokenParaBancoAtivo(token);
+	}
+
+	// Atualiza e salva JSON completo (banco + token)
+	const configAtual = await window.electronAPI.getDatabaseConfig();
+
+	const novaConfig = {
+		salvos: {
+			...(configAtual.salvos || {}),
+			[database]: {
+				host,
+				port,
+				user,
+				password,
+				database,
+				token
+			},
+		},
+		ativo: database,
+	};
+
+	await window.electronAPI.setDatabaseConfig(novaConfig);
+
+	statusDiv.textContent = "✅ Configuração salva com sucesso!";
+	statusDiv.className = "text-success fw-bold text-center mt-3";
+
+	await atualizarTituloEmpresa();
+
+	// Atualiza dropdown de bancos
+	const select = document.getElementById("selectBancoSalvo");
+	select.innerHTML = "";
+	Object.entries(novaConfig.salvos).forEach(([nome, dados]) => {
+		const option = document.createElement("option");
+		option.value = nome;
+		option.textContent = `${nome} (${dados.database})`;
+		select.appendChild(option);
+	});
+}
+
 
 // Busca dados de um produto no banco
 async function buscarProduto(pro_codigo) {
@@ -253,167 +349,39 @@ document.getElementById('btnSyncProducts').addEventListener('click', async () =>
 	}
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-	const btnNovaConexao = document.getElementById("btnNovaConexao");
-	const modalConexao = document.getElementById("modalConexao");
+document.addEventListener("DOMContentLoaded", async () => {
+	const selectBanco = document.getElementById("selectBancoSalvo");
+	const btnAtivar = document.getElementById("btnAtivarBanco");
+	const ativacaoStatus = document.getElementById("ativacaoStatus");
 
-	if (btnNovaConexao && modalConexao) {
-		modalInstance = new bootstrap.Modal(modalConexao);
-		btnNovaConexao.addEventListener("click", () => {
-			console.log("🟢 Abrindo modal...");
-			modalInstance.show();
+	const configAtual = await window.electronAPI.getDatabaseConfig();
+
+	if (configAtual && configAtual.salvos) {
+		selectBanco.innerHTML = "";
+		Object.entries(configAtual.salvos).forEach(([nome, dados]) => {
+			const option = document.createElement("option");
+			option.value = nome;
+			option.textContent = `${nome} (${dados.database})`;
+			selectBanco.appendChild(option);
 		});
-	}
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-	const btnNovaConexao = document.getElementById("btnNovaConexao");
-	const modalEl = document.getElementById("modalConexao");
-	const btnSalvar = document.getElementById("btnSalvarConexao");
-	const listaBancosDiv = document.getElementById("listaBancos");
-
-	modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-	function resetarFormularioConexao() {
-		[
-			"input-name",
-			"input-host",
-			"input-port",
-			"input-user",
-			"input-password",
-			"input-database",
-			"input-token",
-		].forEach((id) => (document.getElementById(id).value = ""));
+	} else {
+		selectBanco.innerHTML = `<option disabled>Nenhum banco salvo</option>`;
 	}
 
-	btnNovaConexao.addEventListener("click", () => {
-		resetarFormularioConexao();
-		modal.show();
-	});
+	btnAtivar.addEventListener("click", async () => {
+		const selecionado = selectBanco.value;
+		if (!selecionado) return;
 
-	modalEl.addEventListener("hidden.bs.modal", () => {
-		resetarFormularioConexao();
-	});
-
-	btnSalvar.addEventListener("click", async () => {
-		const novaConexao = {
-			name: document.getElementById("input-name").value.trim(),
-			host: document.getElementById("input-host").value.trim(),
-			port: Number(document.getElementById("input-port").value),
-			user: document.getElementById("input-user").value.trim(),
-			password: document.getElementById("input-password").value.trim(),
-			database: document.getElementById("input-database").value.trim(),
-			token: document.getElementById("input-token").value.trim(),
+		const novoConfig = {
+			...(await window.electronAPI.getDatabaseConfig()),
+			ativo: selecionado,
 		};
 
-		try {
-			let res;
-			if (conexaoEditando) {
-				// Modo edição
-				res = await fetch(`http://localhost:3001/api/database/${conexaoEditando.id}`, {
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(novaConexao),
-				});
-			} else {
-				// Modo criação
-				res = await fetch("http://localhost:3001/api/database", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(novaConexao),
-				});
-			}
+		await window.electronAPI.setDatabaseConfig(novoConfig);
 
-			const data = await res.json();
+		await atualizarTituloEmpresa();
 
-			if (res.ok) {
-				modal.hide();
-				await carregarListaDeConexoes();
-				conexaoEditando = null; // reset
-			} else {
-				alert("Erro: " + (data.message || data.error));
-			}
-		} catch (err) {
-			alert("Erro ao salvar conexão.");
-			console.error(err);
-		}
+		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
+		ativacaoStatus.classList.add("text-success");
 	});
-
-	async function carregarListaDeConexoes() {
-		try {
-			const res = await fetch("http://localhost:3001/api/database");
-			const lista = await res.json();
-			listaBancosDiv.innerHTML = "";
-
-			if (!Array.isArray(lista) || lista.length === 0) {
-				listaBancosDiv.innerHTML = `<p class="text-muted text-center">Nenhuma conexão salva.</p>`;
-				return;
-			}
-
-			lista.forEach((conexao, i) => {
-				const div = document.createElement("div");
-				div.className = "border rounded p-2 mb-2 d-flex justify-content-between align-items-center";
-				div.innerHTML = `
-					<div>
-						<strong>${conexao.name}</strong><br>
-						<small>${conexao.host}:${conexao.port}</small>
-					</div>
-					<div class="d-flex gap-2">
-						<button class="btn btn-sm btn-outline-secondary" onclick="editarConexao(${i})">✏️</button>
-						<button class="btn btn-sm btn-outline-danger" onclick="deletarConexao('${conexao.id}')">🗑️</button>
-					</div>
-				`;
-				listaBancosDiv.appendChild(div);
-			});
-		} catch (err) {
-			listaBancosDiv.innerHTML = `<p class="text-danger">Erro ao carregar conexões</p>`;
-			console.error(err);
-		}
-	}
-
-	carregarListaDeConexoes();
 });
-
-// Globais
-async function deletarConexao(id) {
-	if (!confirm("Tem certeza que deseja excluir esta conexão?")) return;
-	try {
-		await fetch(`http://localhost:3001/api/database/${id}`, { method: "DELETE" });
-		location.reload();
-	} catch (err) {
-		alert("Erro ao deletar conexão.");
-	}
-}
-
-function editarConexao(index) {
-	fetch("http://localhost:3001/api/database")
-		.then(res => res.json())
-		.then(lista => {
-			const conexao = lista[index];
-			if (!conexao) return alert("Conexão não encontrada.");
-
-			// Preencher campos
-			document.getElementById("input-name").value = conexao.name || "";
-			document.getElementById("input-host").value = conexao.host || "";
-			document.getElementById("input-port").value = conexao.port || "";
-			document.getElementById("input-user").value = conexao.user || "";
-			document.getElementById("input-password").value = conexao.password || "";
-			document.getElementById("input-database").value = conexao.database || "";
-			document.getElementById("input-token").value = conexao.token || "";
-
-			// Marcar que estamos editando
-			conexaoEditando = conexao;
-
-			if (!modal) {
-				alert("Modal ainda não está pronto. Tente novamente.");
-				return;
-			}
-
-			// Abrir modal
-			modal.show();
-		})
-		.catch(err => {
-			console.error("Erro ao buscar conexão:", err);
-			alert("Erro ao carregar dados da conexão.");
-		});
-}
