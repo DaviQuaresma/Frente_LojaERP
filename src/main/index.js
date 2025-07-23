@@ -4,6 +4,7 @@ const path = require("path");
 const { app, BrowserWindow, ipcMain } = require("electron");
 const { Client } = require("pg");
 const fs = require('fs');
+const axios = require("axios");
 
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
@@ -41,11 +42,12 @@ app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });
 
-// 🔌 Banco
+// 🧠 Banco ativo local
 ipcMain.handle("getDatabaseConfig", () => getDatabaseConfig());
 ipcMain.handle("setDatabaseConfig", (_, novaCfg) => setDatabaseConfig(novaCfg));
 
-ipcMain.handle("salvar-config-banco", async (_event, config) => {
+// 🔌 Testar conexão com banco informado
+ipcMain.handle("salvar-config-banco", async (_, config) => {
 	try {
 		const connection = new Client(config);
 		await connection.connect();
@@ -169,48 +171,67 @@ ipcMain.handle('sync-products', async () => {
 	}
 });
 
-
-
-ipcMain.handle("salvar-token-para-banco-ativo", async (_event, token) => {
+ipcMain.handle("testar-token-para-banco-ativo", async (_, token) => {
 	try {
-		const config = await getDatabaseConfig();
-		const ativo = config.ativo;
+		const accessToken = await validateToken(token); // Ex: GET /empresa
 
-		if (!ativo || !config.salvos[ativo]) {
-			return { ok: false, error: "Nenhum banco ativo está configurado." };
-		}
+		const { ativo } = getDatabaseConfig();
+		if (!ativo) return { ok: false, error: "Banco ativo não definido localmente." };
 
-		// Atualiza o token no banco ativo
-		config.salvos[ativo].token = token;
+		const { data: bancos } = await axios.get("http://localhost:3001/api/database");
+		const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
+		if (!banco) return { ok: false, error: `Banco ativo "${ativo}" não encontrado na API.` };
 
-		await setDatabaseConfig(config);
-		console.log(`🔐 Token salvo com sucesso para banco ativo "${ativo}"`);
-		return { ok: true };
+		await axios.put(`http://localhost:3001/api/database/${banco.id}`, {
+			...banco,
+			token,
+		});
+
+		console.log(`✅ Token testado e salvo com sucesso para banco "${ativo}"`);
+		return { ok: true, token: accessToken };
 	} catch (err) {
-		console.error("❌ Erro ao salvar token para banco ativo:", err);
+		console.error("❌ Erro ao testar e salvar token:", err.message);
 		return { ok: false, error: err.message };
 	}
 });
 
-ipcMain.handle("testar-token-para-banco-ativo", async (_event, token) => {
+ipcMain.handle("salvar-token-para-banco-ativo", async (_, token) => {
 	try {
-		// Testa o token (você pode usar seu validateToken aqui)
-		const accessToken = await validateToken(token);
+		const { ativo } = getDatabaseConfig();
+		if (!ativo) return { ok: false, error: "Banco ativo não definido localmente." };
 
-		const config = await getDatabaseConfig();
-		const ativo = config.ativo;
+		const { data: bancos } = await axios.get("http://localhost:3001/api/database");
+		const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
+		if (!banco) return { ok: false, error: `Banco ativo "${ativo}" não encontrado na API.` };
 
-		if (!ativo || !config.salvos[ativo]) {
-			return { ok: false, error: "Nenhum banco ativo está configurado." };
-		}
+		await axios.put(`http://localhost:3001/api/database/${banco.id}`, {
+			...banco,
+			token,
+		});
 
-		config.salvos[ativo].token = token;
-		await setDatabaseConfig(config);
-
-		console.log(`✅ Token validado e salvo para banco "${ativo}"`);
-		return { ok: true, token: accessToken };
+		console.log(`🔐 Token salvo diretamente para banco "${ativo}"`);
+		return { ok: true };
 	} catch (err) {
-		console.error("❌ Erro ao testar/salvar token:", err);
+		console.error("❌ Erro ao salvar token:", err.message);
 		return { ok: false, error: err.message };
+	}
+});
+
+
+// ✅ Ativar banco (apenas define no JSON)
+ipcMain.handle("testar-e-conectar", async (_, config) => {
+	try {
+		const client = new Client(config);
+		await client.connect();
+		await client.end();
+
+		// 🔁 Define como ativo no JSON
+		setDatabaseConfig({ ativo: config.nome });
+
+		console.log(`✅ Banco "${config.nome}" testado e ativado.`);
+		return { success: true };
+	} catch (err) {
+		console.error("❌ Erro ao conectar:", err.message);
+		return { success: false, message: err.message };
 	}
 });

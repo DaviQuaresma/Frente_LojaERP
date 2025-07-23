@@ -41,10 +41,10 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 	const password = document.getElementById("cfg-password").value.trim();
 	const database = document.getElementById("cfg-database").value.trim();
 	const token = document.getElementById("cfg-token").value.trim();
+	const nome = database;
 
 	const statusDiv = document.getElementById("configStatus");
 
-	// Validações
 	if (!host || !port || !user || !password || !database) {
 		statusDiv.textContent = "❌ Preencha todos os campos do banco.";
 		statusDiv.className = "text-danger fw-bold text-center mt-3";
@@ -57,12 +57,9 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 		return;
 	}
 
-	// Testa e salva banco
 	if (apenasBanco || tudo) {
 		const config = { host, port, user, password, database };
-
 		const resultado = await window.electronAPI.salvarConfigBanco(config);
-
 		if (!resultado.success) {
 			statusDiv.textContent = `❌ Erro ao conectar no banco: ${resultado.error}`;
 			statusDiv.className = "text-danger fw-bold text-center mt-3";
@@ -70,7 +67,6 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 		}
 	}
 
-	// Testa e salva token
 	if (apenasToken || tudo) {
 		const result = await window.electronAPI.testarTokenParaBancoAtivo(token);
 		if (!result.ok) {
@@ -78,47 +74,39 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 			statusDiv.className = "text-danger fw-bold text-center mt-3";
 			return;
 		}
-
-		// ✅ Agora salva o token de fato no banco ativo
-		await window.electronAPI.salvarTokenParaBancoAtivo(token);
 	}
 
-	// Atualiza e salva JSON completo (banco + token)
-	const configAtual = await window.electronAPI.getDatabaseConfig();
-
-	const novaConfig = {
-		salvos: {
-			...(configAtual.salvos || {}),
-			[database]: {
-				host,
-				port,
-				user,
-				password,
-				database,
-				token
-			},
-		},
-		ativo: database,
-	};
-
-	await window.electronAPI.setDatabaseConfig(novaConfig);
+	// Criação do banco na API
+	await fetch("http://localhost:3001/api/database", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ nome, host, port, user, password, database, token }),
+	});
 
 	statusDiv.textContent = "✅ Configuração salva com sucesso!";
 	statusDiv.className = "text-success fw-bold text-center mt-3";
 
 	await atualizarTituloEmpresa();
-
-	// Atualiza dropdown de bancos
-	const select = document.getElementById("selectBancoSalvo");
-	select.innerHTML = "";
-	Object.entries(novaConfig.salvos).forEach(([nome, dados]) => {
-		const option = document.createElement("option");
-		option.value = nome;
-		option.textContent = `${nome} (${dados.database})`;
-		select.appendChild(option);
-	});
+	await atualizarDropdownBancos();
 }
 
+async function atualizarDropdownBancos() {
+	const select = document.getElementById("selectBancoSalvo");
+	select.innerHTML = "";
+
+	try {
+		const bancos = await fetch("http://localhost:3001/api/database").then(res => res.json());
+
+		bancos.forEach(c => {
+			const option = document.createElement("option");
+			option.value = c.id;
+			option.textContent = `${c.nome} (${c.database})`;
+			select.appendChild(option);
+		});
+	} catch (e) {
+		select.innerHTML = `<option disabled>Erro ao carregar bancos</option>`;
+	}
+}
 
 // Busca dados de um produto no banco
 async function buscarProduto(pro_codigo) {
@@ -354,34 +342,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 	const btnAtivar = document.getElementById("btnAtivarBanco");
 	const ativacaoStatus = document.getElementById("ativacaoStatus");
 
-	const configAtual = await window.electronAPI.getDatabaseConfig();
-
-	if (configAtual && configAtual.salvos) {
-		selectBanco.innerHTML = "";
-		Object.entries(configAtual.salvos).forEach(([nome, dados]) => {
-			const option = document.createElement("option");
-			option.value = nome;
-			option.textContent = `${nome} (${dados.database})`;
-			selectBanco.appendChild(option);
-		});
-	} else {
-		selectBanco.innerHTML = `<option disabled>Nenhum banco salvo</option>`;
-	}
+	await atualizarDropdownBancos();
 
 	btnAtivar.addEventListener("click", async () => {
-		const selecionado = selectBanco.value;
-		if (!selecionado) return;
+		const bancoId = selectBanco.value;
+		if (!bancoId) return;
 
-		const novoConfig = {
-			...(await window.electronAPI.getDatabaseConfig()),
-			ativo: selecionado,
-		};
+		const bancos = await fetch("http://localhost:3001/api/database").then(res => res.json());
+		const bancoSelecionado = bancos.find(c => String(c.id) === bancoId);
 
-		await window.electronAPI.setDatabaseConfig(novoConfig);
+		if (!bancoSelecionado) {
+			ativacaoStatus.textContent = "❌ Banco selecionado não encontrado.";
+			ativacaoStatus.className = "text-danger fw-bold text-center mt-3";
+			return;
+		}
+
+		// Ativa localmente no Electron (em memória, cache, ou persistência)
+		await fetch("http://localhost:3001/api/database", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(bancoSelecionado),
+		});
 
 		await atualizarTituloEmpresa();
 
-		ativacaoStatus.textContent = `✅ Banco "${selecionado}" ativado com sucesso.`;
-		ativacaoStatus.classList.add("text-success");
+		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado.nome}" ativado com sucesso.`;
+		ativacaoStatus.className = "text-success fw-bold text-center mt-3";
 	});
 });

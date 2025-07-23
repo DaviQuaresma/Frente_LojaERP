@@ -1,58 +1,73 @@
 const axios = require("axios");
 require("dotenv").config();
 
-const { getDatabaseConfig } = require("../config/dbControl");
+const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 
-const API_URL = process.env.API_URL;
+const API_URL = process.env.API_URL || "http://localhost:3000";
+const API_BANCOS = "http://localhost:3001/api/database";
 
-// 🔐 Carrega o token diretamente da config do banco ativo
-async function carregarTokenLocal() {
-    const config = await getDatabaseConfig();
+// Busca o token do banco ativo via API 1
+async function carregarTokenRemoto() {
+    const config = getDatabaseConfig();
     const ativo = config?.ativo;
-    const token = config?.salvos?.[ativo]?.token;
+    if (!ativo) throw new Error("Nenhum banco ativo está selecionado.");
 
-    console.log(`🔑 [tokenManager] Banco ativo: ${ativo}`);
-    console.log(`🔑 [tokenManager] Token carregado: ${token?.substring(0, 10)}...`);
+    const { data: bancos } = await axios.get(API_BANCOS);
+    const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
 
-    if (!token) {
-        throw new Error("Token não encontrado na configuração do banco ativo");
+    if (!banco?.token) {
+        throw new Error(`Token não encontrado para banco "${ativo}"`);
     }
 
-    return token;
+    console.log(`🔑 Banco ativo: ${ativo}`);
+    console.log(`🔑 Token carregado: ${banco.token.substring(0, 10)}...`);
+
+    return banco.token;
 }
 
-// ✅ Valida se o token salvo está funcional
-async function validateToken() {
-    const response = await axios.get(`${API_URL}/api/validar-token`);
+async function validateToken(token) {
+    const response = await axios.get(`${API_URL}/api/validar-token`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data.token;
 }
 
-// 🔄 Salva o token na API e valida
 async function setToken() {
-    const token = await carregarTokenLocal();
+    try {
+        const token = await carregarTokenRemoto();
 
-    await axios.post(`${API_URL}/api/config/token`, { token });
+        console.log("📨 Enviando token para API 2...");
+        const res = await axios.post(`${API_URL}/api/config/token`, { token });
 
-    const accessToken = await validateToken();
+        if (res.status !== 200) {
+            throw new Error(`Falha ao salvar token na API 2. Status: ${res.status}`);
+        }
 
-    // Salva o novo token validado no banco ativo
-    const config = getDatabaseConfig();
-    const ativo = config?.ativo;
+        const accessToken = await validateToken(token);
 
-    if (!ativo) throw new Error("Nenhum banco ativo está selecionado");
+        // Salva o novo token validado localmente (opcional)
+        const config = getDatabaseConfig();
+        const ativo = config?.ativo;
 
-    setDatabaseConfig({
-        salvos: {
-            [ativo]: {
-                ...config.salvos[ativo],
-                token: accessToken,
-            },
-        },
-    });
+        if (ativo) {
+            setDatabaseConfig({
+                salvos: {
+                    ...config.salvos,
+                    [ativo]: {
+                        ...config.salvos[ativo],
+                        token: accessToken,
+                    },
+                },
+            });
+        }
 
-    console.log(`💾 [tokenManager] Token salvo com sucesso para banco ativo "${ativo}"`);
-
-    return accessToken;
+        console.log(`💾 Token validado e salvo localmente: ${accessToken.substring(0, 10)}...`);
+        return accessToken;
+    } catch (err) {
+        const msg = err?.response?.data || err?.message || err.toString();
+        console.error("❌ Erro no setToken:", msg);
+        throw new Error(`setToken falhou: ${JSON.stringify(msg)}`);
+    }
 }
 
 module.exports = { setToken };

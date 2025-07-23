@@ -4,6 +4,11 @@ const axios = require("axios");
 
 async function sendVendaToMiddleware(venda, itens) {
     const token = await setToken();
+
+    if (!token) {
+        throw new Error("Token não retornado após chamada ao setToken()");
+    }
+
     const produtosPayload = [];
 
     for (const item of itens) {
@@ -78,15 +83,21 @@ async function sendVendaToMiddleware(venda, itens) {
 
     console.log("Payload montado:");
     console.log(JSON.stringify(payload, null, 2));
+    try {
 
-    const { data } = await axios.post("http://localhost:3000/api/venda", payload, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-        }
-    });
+        const { data } = await axios.post("http://localhost:3000/api/venda", payload, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            }
+        });
 
-    return data;
+        return data;
+    } catch (err) {
+        const msg = err?.response?.data || err.message;
+        console.error("❌ Erro ao enviar venda para API:", msg);
+        throw new Error(`Erro no envio da venda: ${JSON.stringify(msg)}`);
+    }
 }
 
 module.exports = { sendVendaToMiddleware };
