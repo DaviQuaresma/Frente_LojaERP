@@ -277,30 +277,53 @@
               </div>
 
               <!-- Aba Selecionar Banco Ativo -->
-              <div class="tab-pane fade" id="abaBancoAtivo">
-                <div class="mx-auto" style="max-width: 500px">
-                  <h5 class="text-center mb-3">Selecione um Banco Salvo</h5>
+              <div class="tab-pane fade show active" id="abaBancoAtivo">
+                <div
+                  class="mx-auto p-4 border rounded shadow-sm bg-white"
+                  style="max-width: 500px"
+                >
+                  <h5 class="text-center mb-4 fw-semibold">
+                    ⚙️ Configurações do Sistema
+                  </h5>
+
+                  <label for="selectBancoSalvo" class="form-label"
+                    >Selecione um Banco Salvo</label
+                  >
                   <select
                     id="selectBancoSalvo"
                     class="form-select mb-3"
                   ></select>
-                  <button id="btnAtivarBanco" class="btn btn-success w-100">
-                    Ativar Banco Selecionado
+
+                  <button
+                    id="btnAtivarBanco"
+                    class="btn btn-success w-100 mb-3"
+                  >
+                    ✅ Ativar Banco Selecionado
                   </button>
                   <div
                     id="ativacaoStatus"
-                    class="text-center fw-bold mt-3"
+                    class="alert d-none text-center fw-semibold py-2"
+                    role="alert"
                   ></div>
+
                   <hr class="my-4" />
-                  <button
-                    id="btnSyncProducts"
-                    class="btn btn-outline-primary w-100"
-                  >
-                    📦 Sincronizar Produtos com eGestor
-                  </button>
+
+                  <div class="d-grid gap-2">
+                    <button
+                      id="btnSyncProducts"
+                      class="btn btn-outline-primary"
+                    >
+                      📦 Sincronizar Produtos com eGestor
+                    </button>
+                    <button id="cancelSync" class="btn btn-outline-danger">
+                      ❌ Cancelar Sincronização
+                    </button>
+                  </div>
+
                   <div
                     id="syncStatus"
-                    class="text-center fw-bold mt-3 text-muted"
+                    class="text-center fw-semibold mt-4 fade-transition"
+                    style="opacity: 0; transition: opacity 0.3s ease"
                   ></div>
                 </div>
               </div>

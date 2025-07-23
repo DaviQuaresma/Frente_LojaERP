@@ -39,7 +39,7 @@ async function carregarTokenLocal() {
   const banco = bancos.find(b => b.database === ativo);
   if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
 
-  console.log("[carregarTokenLocal] bancos retornados:", bancos);
+  // console.log("[carregarTokenLocal] bancos retornados:", bancos);
   console.log("[carregarTokenLocal] banco ativo:", ativo);
   console.log("[carregarTokenLocal] token encontrado:", banco?.token);
 

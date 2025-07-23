@@ -8,7 +8,7 @@ const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { getNomeBancoAtivo } = require("../db/getNewClient");
-const syncProducts = require("../services/syncProducts");
+const { syncProducts, cancelCurrentSync } = require("../services/syncProducts");
 const { validateToken } = require("../services/middlewareRequests");
 
 const iconPath = path.join(__dirname, "../../logo.png");
@@ -167,6 +167,10 @@ ipcMain.handle('sync-products', async () => {
 			error: err.message || 'Erro desconhecido',
 		};
 	}
+});
+
+ipcMain.on("cancel-sync", () => {
+  cancelCurrentSync();
 });
 
 ipcMain.handle("testar-token-para-banco-ativo", async (_, token) => {

@@ -5,6 +5,8 @@ const { getProductsSync } = require('../utils/dbCommands.js');
 const { getNewClient } = require('../db/getNewClient');
 const { setToken } = require('./middlewareRequests');
 
+let cancelSync = false;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function isProdutoIgual(local, remoto) {
@@ -49,6 +51,8 @@ function buscarProdutoPorCodigo(codigoProprio, listaOrdenada) {
 }
 
 async function processarProduto(prod, token, produtosOrdenados, logs) {
+  if (cancelSync) return; // 👈 interrompe antes de processar
+
   const payload = mapProductToPayload(prod);
   const produtoCache = buscarProdutoPorCodigo(payload.codigoProprio, produtosOrdenados);
 
@@ -59,6 +63,7 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
 
   try {
     await sleep(1000);
+    if (cancelSync) return; // 👈 interrompe mesmo após o delay
 
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -80,8 +85,14 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
   }
 }
 
+function cancelCurrentSync() {
+  cancelSync = true;
+  console.log("❌ Sincronização cancelada pelo usuário.");
+}
+
 async function syncProducts() {
   console.log('[IPC] Iniciando syncProducts...');
+  cancelSync = false; // reset para nova sync
 
   let connection, token;
   try {
@@ -126,19 +137,20 @@ async function syncProducts() {
   const logs = { atualizados: [], criados: [], ignorados: [], erros: [] };
   const limit = pLimit(1);
 
-  const tasks = produtos.map((prod) =>
-    limit(() => processarProduto(prod, token, produtosOrdenados, logs))
-  );
+  for (const prod of produtos) {
+    if (cancelSync) {
+      console.warn("⚠️ Sincronização abortada antes de finalizar.");
+      break;
+    }
+    await limit(() => processarProduto(prod, token, produtosOrdenados, logs));
+  }
 
-  await Promise.all(tasks);
+  console.log(`\n📊 Resumo da sincronização:`);
 
-  console.log(`
-✅ Sincronização finalizada:
-  - Criados:     ${logs.criados.length}
-  - Atualizados: ${logs.atualizados.length}
-  - Ignorados:   ${logs.ignorados.length}
-  - Erros:       ${logs.erros.length}
-  `);
+  console.log(`  ✅ Criados:     ${logs.criados.length}`);
+  console.log(`  🔄 Atualizados: ${logs.atualizados.length}`);
+  console.log(`  ⏭ Ignorados:   ${logs.ignorados.length}`);
+  console.log(`  ❌ Erros:       ${logs.erros.length}`);
 
   if (logs.erros.length) {
     logs.erros.forEach(e =>
@@ -149,4 +161,4 @@ async function syncProducts() {
   console.log('[IPC] syncProducts finalizado.');
 }
 
-module.exports = syncProducts;
+module.exports = { syncProducts, cancelCurrentSync };

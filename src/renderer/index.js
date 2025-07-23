@@ -311,30 +311,51 @@ window.mudarPagina = function (novaPagina) {
 carregarHistorico();
 atualizarTituloEmpresa();
 
-document.getElementById('btnSyncProducts').addEventListener('click', async () => {
-	const btn = document.getElementById('btnSyncProducts');
-	const status = document.getElementById('syncStatus');
+const btnSync = document.getElementById('btnSyncProducts');
+const status = document.getElementById('syncStatus');
+const btnCancelar = document.getElementById('cancelSync');
 
-	btn.disabled = true;
-	status.textContent = '🔄 Sincronizando produtos...';
+function showStatus(message, type = 'muted') {
+	status.textContent = message;
+	status.classList.remove('text-muted', 'text-success', 'text-danger');
+	status.classList.add(`text-${type}`);
+	status.style.opacity = 1;
+}
+
+function hideStatus() {
+	status.style.opacity = 0;
+	setTimeout(() => {
+		status.textContent = '';
+	}, 300);
+}
+
+btnSync.addEventListener('click', async () => {
+	btnSync.disabled = true;
+	btnCancelar.disabled = false;
+
+	showStatus('🔄 Sincronizando produtos...', 'muted');
 
 	try {
 		const result = await window.electronAPI.syncProducts();
+
 		if (result.ok) {
-			status.textContent = '✅ Produtos sincronizados com sucesso!';
-			status.classList.remove('text-danger');
-			status.classList.add('text-success');
+			showStatus('✅ Produtos sincronizados com sucesso!', 'success');
 		} else {
-			status.textContent = `❌ Erro: ${result.error || 'Falha desconhecida'}`;
-			status.classList.remove('text-success');
-			status.classList.add('text-danger');
+			showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
 		}
 	} catch (err) {
-		status.textContent = `❌ Erro inesperado: ${err.message}`;
-		status.classList.add('text-danger');
+		showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
 	} finally {
-		btn.disabled = false;
+		btnSync.disabled = false;
+		btnCancelar.disabled = true;
+
+		setTimeout(hideStatus, 4000);
 	}
+});
+
+btnCancelar.addEventListener('click', () => {
+	window.electronAPI.cancelSync();
+	showStatus('⚠️ Sincronização cancelada pelo usuário.', 'danger');
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -358,7 +379,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		}
 
 		// ✅ Atualiza banco ativo local no Electron via preload
-		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado.name);
+		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado.database);
 		console.log("Banco selecionado:", bancoSelecionado);
 		if (!resElectron?.success) {
 			ativacaoStatus.textContent = `❌ Erro ao ativar banco: ${resElectron.message}`;
@@ -366,12 +387,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 			return;
 		}
 
-		// 🔁 Atualiza também no backend local (opcional, se necessário)
-		await fetch("http://localhost:3001/api/database", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ database: bancoSelecionado.database }),
-		});
+		// // 🔁 Atualiza também no backend local (opcional, se necessário)
+		// await fetch("http://localhost:3001/api/database", {
+		// 	method: "POST",
+		// 	headers: { "Content-Type": "application/json" },
+		// 	body: JSON.stringify({ database: bancoSelecionado.database }),
+		// });
 
 		await atualizarTituloEmpresa();
 
