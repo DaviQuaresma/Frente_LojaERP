@@ -28,9 +28,7 @@ async function getNewClient() {
 		throw new Error("Erro ao buscar bancos cadastrados na API: " + err.message);
 	}
 
-	const banco = bancos.find(
-		(b) => b.nome === bancoAtivoNome || b.database === bancoAtivoNome
-	);
+	const banco = bancos.find(b => b.database === bancoAtivoNome);
 
 	if (!banco) {
 		throw new Error(`Banco ativo "${bancoAtivoNome}" não foi encontrado na API.`);

@@ -1,23 +1,24 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
-	// 🔌 Banco
+	// Banco
 	salvarConfigBanco: (cfg) => ipcRenderer.invoke("salvar-config-banco", cfg),
 	getDatabaseConfig: () => ipcRenderer.invoke("getDatabaseConfig"),
 	setDatabaseConfig: (cfg) => ipcRenderer.invoke("setDatabaseConfig", cfg),
-	getNomeBancoAtivo: () => ipcRenderer.invoke("get-nome-banco-ativo"),
+	setBancoAtivo: (nome) => ipcRenderer.invoke("set-banco-ativo", nome),
 
-	// 🛒 Vendas
+	// Info
+	getNomeBancoAtivo: () => ipcRenderer.invoke("get-nome-banco-ativo"),
+	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
+
+	// Produtos
+	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
+	syncProducts: () => ipcRenderer.invoke("sync-products"),
+
+	// Vendas
 	criarVenda: (valor) => ipcRenderer.invoke("criar-venda", valor),
 	listarVendas: (filtros) => ipcRenderer.invoke("listar-vendas", filtros),
 
-	// 🔎 Produtos e Empresa
-	buscarProduto: (codigo) => ipcRenderer.invoke("buscar-produto", codigo),
-	getEmpresa: () => ipcRenderer.invoke("get-empresa"),
-	syncProducts: () => ipcRenderer.invoke("sync-products"),
-
-	// 🔐 Token junto ao banco ativo
+	// Token
 	testarTokenParaBancoAtivo: (token) => ipcRenderer.invoke("testar-token-para-banco-ativo", token),
-	salvarTokenParaBancoAtivo: (token) => ipcRenderer.invoke("salvar-token-para-banco-ativo", token),
-
 });

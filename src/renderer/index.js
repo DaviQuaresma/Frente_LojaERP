@@ -41,11 +41,11 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 	const password = document.getElementById("cfg-password").value.trim();
 	const database = document.getElementById("cfg-database").value.trim();
 	const token = document.getElementById("cfg-token").value.trim();
-	const nome = database;
+	const name = database;
 
 	const statusDiv = document.getElementById("configStatus");
 
-	if (!host || !port || !user || !password || !database) {
+	if (!name, !host || !port || !user || !password || !database) {
 		statusDiv.textContent = "❌ Preencha todos os campos do banco.";
 		statusDiv.className = "text-danger fw-bold text-center mt-3";
 		return;
@@ -80,7 +80,7 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 	await fetch("http://localhost:3001/api/database", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ nome, host, port, user, password, database, token }),
+		body: JSON.stringify({ name, host, port, user, password, database, token }),
 	});
 
 	statusDiv.textContent = "✅ Configuração salva com sucesso!";
@@ -99,8 +99,8 @@ async function atualizarDropdownBancos() {
 
 		bancos.forEach(c => {
 			const option = document.createElement("option");
-			option.value = c.id;
-			option.textContent = `${c.nome} (${c.database})`;
+			option.value = c.database;
+			option.textContent = `${c.database}`;
 			select.appendChild(option);
 		});
 	} catch (e) {
@@ -349,7 +349,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		if (!bancoId) return;
 
 		const bancos = await fetch("http://localhost:3001/api/database").then(res => res.json());
-		const bancoSelecionado = bancos.find(c => String(c.id) === bancoId);
+		const bancoSelecionado = bancos.find(c => c.database === selectBanco.value);
 
 		if (!bancoSelecionado) {
 			ativacaoStatus.textContent = "❌ Banco selecionado não encontrado.";
@@ -357,16 +357,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 			return;
 		}
 
-		// Ativa localmente no Electron (em memória, cache, ou persistência)
+		// ✅ Atualiza banco ativo local no Electron via preload
+		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado.name);
+		console.log("Banco selecionado:", bancoSelecionado);
+		if (!resElectron?.success) {
+			ativacaoStatus.textContent = `❌ Erro ao ativar banco: ${resElectron.message}`;
+			ativacaoStatus.className = "text-danger fw-bold text-center mt-3";
+			return;
+		}
+
+		// 🔁 Atualiza também no backend local (opcional, se necessário)
 		await fetch("http://localhost:3001/api/database", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(bancoSelecionado),
+			body: JSON.stringify({ database: bancoSelecionado.database }),
 		});
 
 		await atualizarTituloEmpresa();
 
-		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado.nome}" ativado com sucesso.`;
+		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado.database}" ativado com sucesso.`;
 		ativacaoStatus.className = "text-success fw-bold text-center mt-3";
 	});
+
 });

@@ -36,8 +36,12 @@ async function setToken() {
     try {
         const token = await carregarTokenRemoto();
 
+        console.log("[tokenManager] 🔑 Token carregado:", token.substring(0, 10) + "...");
+
         console.log("📨 Enviando token para API 2...");
         const res = await axios.post(`${API_URL}/api/config/token`, { token });
+
+        console.log("[tokenManager] resposta da api:", res.data.message);
 
         if (res.status !== 200) {
             throw new Error(`Falha ao salvar token na API 2. Status: ${res.status}`);

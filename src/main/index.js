@@ -3,8 +3,6 @@
 const path = require("path");
 const { app, BrowserWindow, ipcMain } = require("electron");
 const { Client } = require("pg");
-const fs = require('fs');
-const axios = require("axios");
 
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
@@ -82,9 +80,9 @@ ipcMain.handle("get-empresa", async () => {
 	}
 });
 
-ipcMain.handle("get-nome-banco-ativo", () => {
-	return getNomeBancoAtivo();
-});
+// ipcMain.handle("get-nome-banco-ativo", () => {
+// 	return getNomeBancoAtivo();
+// });
 
 // 🛒 Venda
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
@@ -173,49 +171,38 @@ ipcMain.handle('sync-products', async () => {
 
 ipcMain.handle("testar-token-para-banco-ativo", async (_, token) => {
 	try {
-		const accessToken = await validateToken(token); // Ex: GET /empresa
+		const accessToken = await validateToken(token);
 
-		const { ativo } = getDatabaseConfig();
-		if (!ativo) return { ok: false, error: "Banco ativo não definido localmente." };
-
-		const { data: bancos } = await axios.get("http://localhost:3001/api/database");
-		const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
-		if (!banco) return { ok: false, error: `Banco ativo "${ativo}" não encontrado na API.` };
-
-		await axios.put(`http://localhost:3001/api/database/${banco.id}`, {
-			...banco,
-			token,
-		});
-
-		console.log(`✅ Token testado e salvo com sucesso para banco "${ativo}"`);
+		// Se chegou aqui, token é válido
+		console.log(`✅ Token válido recebido para banco ativo.`);
 		return { ok: true, token: accessToken };
 	} catch (err) {
-		console.error("❌ Erro ao testar e salvar token:", err.message);
+		console.error("❌ Token inválido:", err.message);
 		return { ok: false, error: err.message };
 	}
 });
 
-ipcMain.handle("salvar-token-para-banco-ativo", async (_, token) => {
-	try {
-		const { ativo } = getDatabaseConfig();
-		if (!ativo) return { ok: false, error: "Banco ativo não definido localmente." };
+// ipcMain.handle("salvar-token-para-banco-ativo", async (_, token) => {
+// 	try {
+// 		const { ativo } = getDatabaseConfig();
+// 		if (!ativo) return { ok: false, error: "Banco ativo não definido localmente." };
 
-		const { data: bancos } = await axios.get("http://localhost:3001/api/database");
-		const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
-		if (!banco) return { ok: false, error: `Banco ativo "${ativo}" não encontrado na API.` };
+// 		const { data: bancos } = await axios.get("http://localhost:3001/api/database");
+// 		const banco = bancos.find(b => b.nome === ativo || b.database === ativo);
+// 		if (!banco) return { ok: false, error: `Banco ativo "${ativo}" não encontrado na API.` };
 
-		await axios.put(`http://localhost:3001/api/database/${banco.id}`, {
-			...banco,
-			token,
-		});
+// 		await axios.put(`http://localhost:3001/api/database/${banco.id}`, {
+// 			...banco,
+// 			token,
+// 		});
 
-		console.log(`🔐 Token salvo diretamente para banco "${ativo}"`);
-		return { ok: true };
-	} catch (err) {
-		console.error("❌ Erro ao salvar token:", err.message);
-		return { ok: false, error: err.message };
-	}
-});
+// 		console.log(`🔐 Token salvo diretamente para banco "${ativo}"`);
+// 		return { ok: true };
+// 	} catch (err) {
+// 		console.error("❌ Erro ao salvar token:", err.message);
+// 		return { ok: false, error: err.message };
+// 	}
+// });
 
 
 // ✅ Ativar banco (apenas define no JSON)
@@ -232,6 +219,21 @@ ipcMain.handle("testar-e-conectar", async (_, config) => {
 		return { success: true };
 	} catch (err) {
 		console.error("❌ Erro ao conectar:", err.message);
+		return { success: false, message: err.message };
+	}
+});
+
+ipcMain.handle("set-banco-ativo", async (_, nome) => {
+	try {
+		const configAtual = getDatabaseConfig();
+		if (!configAtual.salvos[nome]) {
+			return { success: false, message: `Banco "${nome}" não encontrado.` };
+		}
+		setDatabaseConfig({ ativo: nome });
+		console.log(`✅ Banco ativo atualizado para: ${nome}`);
+		return { success: true };
+	} catch (err) {
+		console.error("❌ Erro ao definir banco ativo:", err.message);
 		return { success: false, message: err.message };
 	}
 });

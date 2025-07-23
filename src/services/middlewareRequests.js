@@ -1,17 +1,16 @@
 require("dotenv").config();
-
 const axios = require("axios");
 const { getVendaById, getItensVendaByPedido } = require("../utils/dbCommands");
 const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
 const { getDatabaseConfig } = require("../config/dbControl");
 
 const API_URL = process.env.API_URL;
+const API_DB_URL = "http://localhost:3001/api/database";
 
 // 📦 Envia venda + itens para o middleware
 async function VendaMiddleware(connection, vendaId) {
   const venda = await getVendaById(connection, vendaId);
   const itens = await getItensVendaByPedido(connection, vendaId);
-
   return await sendVendaToMiddleware(venda, itens);
 }
 
@@ -31,17 +30,20 @@ async function validateToken(token) {
   }
 }
 
-// 🔐 Carrega o token salvo no config ativo
+// 🔐 Busca o token salvo na API local com base no banco ativo
 async function carregarTokenLocal() {
-  const config = await getDatabaseConfig();
-  const ativo = config?.ativo;
-  const token = config?.salvos?.[ativo]?.token;
+  const { ativo } = await getDatabaseConfig();
+  if (!ativo) throw new Error("Banco ativo não definido");
 
-  if (!token) {
-    throw new Error("Token não encontrado na configuração do banco ativo");
-  }
+  const { data: bancos } = await axios.get(API_DB_URL);
+  const banco = bancos.find(b => b.database === ativo);
+  if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
 
-  return token;
+  console.log("[carregarTokenLocal] bancos retornados:", bancos);
+  console.log("[carregarTokenLocal] banco ativo:", ativo);
+  console.log("[carregarTokenLocal] token encontrado:", banco?.token);
+
+  return banco.token;
 }
 
 // 🔄 Salva o token na API e valida ele
@@ -49,16 +51,20 @@ async function setToken() {
   try {
     const token = await carregarTokenLocal();
 
+    console.log("[middlewareRequests] 🔑 Token carregado:", token);
+
     console.log("📨 Enviando token para API...");
     const res = await axios.post(`${API_URL}/api/config/token`, { token });
+
+    console.log("[middlewareRequests] resposta da api:", res.data);
 
     if (res.status !== 200) {
       throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
     }
 
     console.log("💾 Token salvo na API com sucesso!");
-
     const accessToken = await validateToken(token);
+
     return accessToken;
   } catch (error) {
     const msg = error?.response?.data || error.message;
