@@ -16,7 +16,7 @@ async function carregarTokenLocal() {
     if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
 
     console.log("🔑 Banco ativo:", ativo);
-    console.log("🔑 Token carregado:", banco.token.substring(0, 10) + "...");
+    // console.log("🔑 Token carregado:", banco.token.substring(0, 10) + "...");
 
     return banco.token;
 }
@@ -35,9 +35,9 @@ async function setToken() {
     try {
         const token = await carregarTokenLocal();
 
-        console.log("[tokenManager] 🔑 Token carregado:", token.substring(0, 10) + "...");
+        // console.log("[tokenManager] 🔑 Token carregado:", token.substring(0, 10) + "...");
 
-        console.log("📨 Enviando token para API...");
+        // console.log("Enviando token para API...");
         const res = await axios.post(`${API_URL}/api/config/token`, { token });
 
         if (res.status !== 200 || !res.data) {
@@ -61,7 +61,7 @@ async function setToken() {
             });
         }
 
-        console.log(`💾 Token validado e salvo localmente: ${accessToken.substring(0, 10)}...`);
+        // console.log(`💾 Token validado e salvo localmente: ${accessToken.substring(0, 10)}...`);
         return accessToken;
     } catch (err) {
         const msg = err?.response?.data || err?.message || err.toString();

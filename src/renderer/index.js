@@ -316,46 +316,46 @@ const status = document.getElementById('syncStatus');
 const btnCancelar = document.getElementById('cancelSync');
 
 function showStatus(message, type = 'muted') {
-	status.textContent = message;
-	status.classList.remove('text-muted', 'text-success', 'text-danger');
-	status.classList.add(`text-${type}`);
-	status.style.opacity = 1;
+  status.textContent = message;
+  status.classList.remove('text-muted', 'text-success', 'text-danger');
+  status.classList.add(`text-${type}`);
+  status.style.opacity = 1;
 }
 
 function hideStatus() {
-	status.style.opacity = 0;
-	setTimeout(() => {
-		status.textContent = '';
-	}, 300);
+  status.style.opacity = 0;
+  setTimeout(() => {
+    status.textContent = '';
+  }, 300);
 }
 
 btnSync.addEventListener('click', async () => {
-	btnSync.disabled = true;
-	btnCancelar.disabled = false;
+  btnSync.disabled = true;
+  btnCancelar.disabled = false;
 
-	showStatus('🔄 Sincronizando produtos...', 'muted');
+  showStatus('🔄 Sincronizando produtos...', 'muted');
 
-	try {
-		const result = await window.electronAPI.syncProducts();
+  try {
+    const result = await window.electronAPI.syncProducts();
 
-		if (result.ok) {
-			showStatus('✅ Produtos sincronizados com sucesso!', 'success');
-		} else {
-			showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
-		}
-	} catch (err) {
-		showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
-	} finally {
-		btnSync.disabled = false;
-		btnCancelar.disabled = true;
+    if (result.ok) {
+      showStatus('✅ Produtos sincronizados com sucesso!', 'success');
+    } else {
+      showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
+    }
+  } catch (err) {
+    showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
+  } finally {
+    btnSync.disabled = false;
+    btnCancelar.disabled = true;
 
-		setTimeout(hideStatus, 4000);
-	}
+    setTimeout(hideStatus, 4000);
+  }
 });
 
 btnCancelar.addEventListener('click', () => {
-	window.electronAPI.cancelSync();
-	showStatus('⚠️ Sincronização cancelada pelo usuário.', 'danger');
+  window.electronAPI.cancelSync();
+  showStatus('⚠️ Sincronização cancelada pelo usuário.', 'danger');
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado.database);
 		console.log("Banco selecionado:", bancoSelecionado);
 		if (!resElectron?.success) {
-			ativacaoStatus.textContent = `❌ Erro ao ativar banco: ${resElectron.message}`;
+			ativacaoStatus.textContent = `Erro ao ativar banco: ${resElectron.message}`;
 			ativacaoStatus.className = "text-danger fw-bold text-center mt-3";
 			return;
 		}

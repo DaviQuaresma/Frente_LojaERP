@@ -18,6 +18,11 @@ async function atualizarCacheProdutos() {
     const produtos = res.data || [];
     const novoCache = new Map();
 
+    // console.log("[CACHE] Produtos recebidos:", produtos.map(p => ({
+    //     codigoProprio: p.codigoProprio,
+    //     codigo: p.codigo
+    // })));
+
     produtos.forEach((p) => {
         if (p.codigoProprio && p.codigo) {
             novoCache.set(p.codigoProprio.toString(), p.codigo);

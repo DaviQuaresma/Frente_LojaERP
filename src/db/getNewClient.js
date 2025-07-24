@@ -9,7 +9,7 @@ function getNomeBancoAtivo() {
 		const settings = getDatabaseConfig();
 		return settings.ativo || null;
 	} catch (err) {
-		console.error("❌ Erro ao obter banco ativo local:", err.message);
+		console.error("Erro ao obter banco ativo local:", err.message);
 		return null;
 	}
 }

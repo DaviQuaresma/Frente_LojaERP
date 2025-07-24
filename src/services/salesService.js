@@ -14,6 +14,11 @@ const {
 	checkRequiredColumns,
 } = require("../utils/dbCommands");
 
+const {
+	getCodigoEgestorPorCodigoProprio,
+	atualizarCacheProdutos,
+} = require("../cache/cacheProdutos");
+
 const { getNewClient } = require("../db/getNewClient");
 const { VendaMiddleware } = require("./middlewareRequests");
 
@@ -22,6 +27,8 @@ function shuffleArray(array) {
 }
 
 async function createSale(valorAlvo) {
+	await atualizarCacheProdutos(); // garantir dados atuais
+
 	console.log("🔁 Iniciando createSale com valor:", valorAlvo);
 	const connection = await getNewClient();
 
@@ -49,8 +56,20 @@ async function createSale(valorAlvo) {
 		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
 
 		let produtos = await getAvailableProducts(connection);
-		console.log("🔍 Produtos buscados:", produtos.length);
-		produtos = produtos.filter((p) => p.estoque && p.estoque >= 10);
+		console.log("🔍 Produtos buscados no banco local:", produtos.length);
+
+		// Filtrar apenas os produtos que existem no cache do eGestor
+		const produtosSincronizados = [];
+		for (const p of produtos) {
+			const codigoProprio = p.pro_codigo?.toString();
+			const codEgestor = await getCodigoEgestorPorCodigoProprio(codigoProprio);
+			if (codEgestor) produtosSincronizados.push(p);
+		}
+
+		console.log("🔒 Produtos sincronizados disponíveis para venda:", produtosSincronizados.length);
+
+		// Agora sim aplica o filtro de estoque e embaralha
+		produtos = produtosSincronizados.filter((p) => p.estoque && p.estoque >= 10);
 		produtos = shuffleArray(produtos);
 
 		if (produtos.length === 0) {
@@ -146,7 +165,7 @@ async function createSale(valorAlvo) {
 			return "Operação realizada com sucesso!";
 		} catch (apiError) {
 			await connection.query("ROLLBACK");
-			console.error("❌ Erro na integração com API. Transação revertida.", apiError);
+			console.error("Erro na integração com API. Transação revertida.", apiError);
 			throw apiError;
 		}
 	} catch (err) {
@@ -157,6 +176,5 @@ async function createSale(valorAlvo) {
 		await connection.end();
 	}
 }
-
 
 module.exports = { createSale };

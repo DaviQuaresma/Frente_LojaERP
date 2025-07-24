@@ -14,13 +14,11 @@ async function sendVendaToMiddleware(venda, itens) {
     for (const item of itens) {
         const codProprio = (item.pro_codigo || item.pro_codigo_or || item.codProduto || "").toString();
 
-        if (!codProprio) {
-            throw new Error("Item sem código próprio (produto inválido)");
-        }
-
         const codEgestor = await getCodigoEgestorPorCodigoProprio(codProprio, token);
 
         if (!codEgestor) {
+            console.error("❌ Código próprio não encontrado:", codProprio);
+            console.error("📦 Cache atual:", [...require("../cache/cacheProdutos").cache.entries()]);
             throw new Error(`Produto não encontrado no eGestor: ${codProprio}`);
         }
 
