@@ -83,7 +83,7 @@ async function sendVendaToMiddleware(venda, itens) {
     console.log(JSON.stringify(payload, null, 2));
     try {
 
-        const { data } = await axios.post("http://localhost:3000/api/venda", payload, {
+        const { data } = await axios.post("http://localhost:5000/api/venda", payload, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",

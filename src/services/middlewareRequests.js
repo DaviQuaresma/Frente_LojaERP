@@ -4,8 +4,8 @@ const { getVendaById, getItensVendaByPedido } = require("../utils/dbCommands");
 const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
 const { getDatabaseConfig } = require("../config/dbControl");
 
-const API_URL = process.env.API_URL;
-const API_DB_URL = "http://localhost:3001/api/database";
+const API_URL = "http://localhost:5000";
+const API_DB_URL = "http://localhost:5001/api/database";
 
 // 📦 Envia venda + itens para o middleware
 async function VendaMiddleware(connection, vendaId) {

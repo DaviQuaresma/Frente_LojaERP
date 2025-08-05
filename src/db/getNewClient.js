@@ -22,7 +22,7 @@ async function getNewClient() {
 
 	let bancos;
 	try {
-		const response = await axios.get("http://localhost:3001/api/database");
+		const response = await axios.get("http://localhost:5001/api/database");
 		bancos = response.data;
 	} catch (err) {
 		throw new Error("Erro ao buscar bancos cadastrados na API: " + err.message);

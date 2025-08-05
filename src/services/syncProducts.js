@@ -63,7 +63,7 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
 
   try {
     await sleep(1000);
-    if (cancelSync) return; // 👈 interrompe mesmo após o delay
+    if (cancelSync) return;
 
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -71,10 +71,10 @@ async function processarProduto(prod, token, produtosOrdenados, logs) {
     };
 
     if (produtoCache) {
-      await axios.put(`http://localhost:3000/api/produtos/${produtoCache.codigo}`, payload, { headers });
+      await axios.put(`http://localhost:5000/api/produtos/${produtoCache.codigo}`, payload, { headers });
       logs.atualizados.push(payload.codigoProprio);
     } else {
-      await axios.post(`http://localhost:3000/api/produtos`, payload, { headers });
+      await axios.post(`http://localhost:5000/api/produtos`, payload, { headers });
       logs.criados.push(payload.codigoProprio);
     }
   } catch (err) {
@@ -117,7 +117,7 @@ async function syncProducts() {
 
   let produtosOrdenados = [];
   try {
-    const { data } = await axios.get(`http://localhost:3000/api/produtos`, {
+    const { data } = await axios.get(`http://localhost:5000/api/produtos`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',

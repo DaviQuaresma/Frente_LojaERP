@@ -3,8 +3,8 @@ require("dotenv").config();
 
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 
-const API_URL = process.env.API_URL || "http://localhost:3000";
-const API_DB_URL = "http://localhost:3001/api/database";
+const API_URL = process.env.API_URL || "http://localhost:5000";
+const API_DB_URL = "http://localhost:5001/api/database";
 
 // 🔐 Busca o token salvo na API local com base no banco ativo
 async function carregarTokenLocal() {
@@ -16,7 +16,6 @@ async function carregarTokenLocal() {
     if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
 
     console.log("🔑 Banco ativo:", ativo);
-    // console.log("🔑 Token carregado:", banco.token.substring(0, 10) + "...");
 
     return banco.token;
 }
@@ -34,8 +33,6 @@ async function validateToken(token) {
 async function setToken() {
     try {
         const token = await carregarTokenLocal();
-
-        // console.log("[tokenManager] 🔑 Token carregado:", token.substring(0, 10) + "...");
 
         // console.log("Enviando token para API...");
         const res = await axios.post(`${API_URL}/api/config/token`, { token });
@@ -61,7 +58,6 @@ async function setToken() {
             });
         }
 
-        // console.log(`💾 Token validado e salvo localmente: ${accessToken.substring(0, 10)}...`);
         return accessToken;
     } catch (err) {
         const msg = err?.response?.data || err?.message || err.toString();

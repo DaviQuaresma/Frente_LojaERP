@@ -8,7 +8,7 @@ const TTL = 1000 * 60 * 5; // 5 minutos de validade
 async function atualizarCacheProdutos() {
     const token = await setToken();
 
-    const res = await axios.get("http://localhost:3000/api/produtos", {
+    const res = await axios.get("http://localhost:5000/api/produtos", {
         headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",

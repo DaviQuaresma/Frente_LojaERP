@@ -77,7 +77,7 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 	}
 
 	// Criação do banco na API
-	await fetch("http://localhost:3001/api/database", {
+	await fetch("http://localhost:5001/api/database", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name, host, port, user, password, database, token }),
@@ -95,7 +95,7 @@ async function atualizarDropdownBancos() {
 	select.innerHTML = "";
 
 	try {
-		const bancos = await fetch("http://localhost:3001/api/database").then(res => res.json());
+		const bancos = await fetch("http://localhost:5001/api/database").then(res => res.json());
 
 		bancos.forEach(c => {
 			const option = document.createElement("option");
@@ -369,7 +369,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		const bancoId = selectBanco.value;
 		if (!bancoId) return;
 
-		const bancos = await fetch("http://localhost:3001/api/database").then(res => res.json());
+		const bancos = await fetch("http://localhost:5001/api/database").then(res => res.json());
 		const bancoSelecionado = bancos.find(c => c.database === selectBanco.value);
 
 		if (!bancoSelecionado) {
@@ -388,7 +388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		}
 
 		// // 🔁 Atualiza também no backend local (opcional, se necessário)
-		// await fetch("http://localhost:3001/api/database", {
+		// await fetch("http://localhost:5001/api/database", {
 		// 	method: "POST",
 		// 	headers: { "Content-Type": "application/json" },
 		// 	body: JSON.stringify({ database: bancoSelecionado.database }),
