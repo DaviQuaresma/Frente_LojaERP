@@ -204,14 +204,14 @@ ipcMain.handle("testar-e-conectar", async (_, config) => {
 	}
 });
 
-ipcMain.handle("set-banco-ativo", async (_, nome) => {
+ipcMain.handle("set-banco-ativo", async (_, database) => {
 	try {
 		const configAtual = getDatabaseConfig();
-		if (!configAtual.salvos[nome]) {
-			return { success: false, message: `Banco "${nome}" não encontrado.` };
+		if (!configAtual.salvos[database]) {
+			return { success: false, message: `Banco "${database}" não encontrado.` };
 		}
-		setDatabaseConfig({ ativo: nome });
-		console.log(`Banco ativo atualizado para: ${nome}`);
+		setDatabaseConfig({ ativo: database });
+		console.log(`Banco ativo atualizado para: ${database}`);
 		return { success: true };
 	} catch (err) {
 		console.error("Erro ao definir banco ativo:", err.message);

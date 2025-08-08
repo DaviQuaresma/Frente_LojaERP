@@ -22,19 +22,11 @@ async function atualizarTituloEmpresa() {
 	}
 }
 
-document.getElementById("btnTestarBanco").addEventListener("click", async () => {
-	await salvarBancoEToken({ apenasBanco: true });
-});
-
-document.getElementById("btnTestarTokenBanco").addEventListener("click", async () => {
-	await salvarBancoEToken({ apenasToken: true });
-});
-
 document.getElementById("btnSalvarTudo").addEventListener("click", async () => {
-	await salvarBancoEToken({ tudo: true });
+	await salvarBancoEToken();
 });
 
-async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tudo = false }) {
+async function salvarBancoEToken() {
 	const host = document.getElementById("cfg-host").value.trim();
 	const port = parseInt(document.getElementById("cfg-port").value.trim());
 	const user = document.getElementById("cfg-user").value.trim();
@@ -44,39 +36,28 @@ async function salvarBancoEToken({ apenasBanco = false, apenasToken = false, tud
 	const name = database;
 
 	const statusDiv = document.getElementById("configStatus");
+	const config = { host, port, user, password, database };
+	const resultado = await window.electronAPI.salvarConfigBanco(config);
 
-	if (!name, !host || !port || !user || !password || !database) {
+	if (!name, !host || !port || !user || !password || !database || !token) {
 		statusDiv.textContent = "❌ Preencha todos os campos do banco.";
 		statusDiv.className = "text-danger fw-bold text-center mt-3";
 		return;
 	}
 
-	if ((apenasToken || tudo) && !token) {
-		statusDiv.textContent = "❌ Token da API está vazio.";
+	if (!resultado.success) {
+		statusDiv.textContent = `❌ Erro ao conectar no banco: ${resultado.error}`;
 		statusDiv.className = "text-danger fw-bold text-center mt-3";
 		return;
 	}
 
-	if (apenasBanco || tudo) {
-		const config = { host, port, user, password, database };
-		const resultado = await window.electronAPI.salvarConfigBanco(config);
-		if (!resultado.success) {
-			statusDiv.textContent = `❌ Erro ao conectar no banco: ${resultado.error}`;
-			statusDiv.className = "text-danger fw-bold text-center mt-3";
-			return;
-		}
+	const result = await window.electronAPI.testarTokenParaBancoAtivo(token);
+	if (!result.ok) {
+		statusDiv.textContent = `❌ Erro ao validar token: ${result.error}`;
+		statusDiv.className = "text-danger fw-bold text-center mt-3";
+		return;
 	}
 
-	if (apenasToken || tudo) {
-		const result = await window.electronAPI.testarTokenParaBancoAtivo(token);
-		if (!result.ok) {
-			statusDiv.textContent = `❌ Erro ao validar token: ${result.error}`;
-			statusDiv.className = "text-danger fw-bold text-center mt-3";
-			return;
-		}
-	}
-
-	// Criação do banco na API
 	await fetch("http://localhost:5001/api/database", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
@@ -316,46 +297,46 @@ const status = document.getElementById('syncStatus');
 const btnCancelar = document.getElementById('cancelSync');
 
 function showStatus(message, type = 'muted') {
-  status.textContent = message;
-  status.classList.remove('text-muted', 'text-success', 'text-danger');
-  status.classList.add(`text-${type}`);
-  status.style.opacity = 1;
+	status.textContent = message;
+	status.classList.remove('text-muted', 'text-success', 'text-danger');
+	status.classList.add(`text-${type}`);
+	status.style.opacity = 1;
 }
 
 function hideStatus() {
-  status.style.opacity = 0;
-  setTimeout(() => {
-    status.textContent = '';
-  }, 300);
+	status.style.opacity = 0;
+	setTimeout(() => {
+		status.textContent = '';
+	}, 300);
 }
 
 btnSync.addEventListener('click', async () => {
-  btnSync.disabled = true;
-  btnCancelar.disabled = false;
+	btnSync.disabled = true;
+	btnCancelar.disabled = false;
 
-  showStatus('🔄 Sincronizando produtos...', 'muted');
+	showStatus('🔄 Sincronizando produtos...', 'muted');
 
-  try {
-    const result = await window.electronAPI.syncProducts();
+	try {
+		const result = await window.electronAPI.syncProducts();
 
-    if (result.ok) {
-      showStatus('✅ Produtos sincronizados com sucesso!', 'success');
-    } else {
-      showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
-    }
-  } catch (err) {
-    showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
-  } finally {
-    btnSync.disabled = false;
-    btnCancelar.disabled = true;
+		if (result.ok) {
+			showStatus('✅ Produtos sincronizados com sucesso!', 'success');
+		} else {
+			showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
+		}
+	} catch (err) {
+		showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
+	} finally {
+		btnSync.disabled = false;
+		btnCancelar.disabled = true;
 
-    setTimeout(hideStatus, 4000);
-  }
+		setTimeout(hideStatus, 4000);
+	}
 });
 
 btnCancelar.addEventListener('click', () => {
-  window.electronAPI.cancelSync();
-  showStatus('⚠️ Sincronização cancelada pelo usuário.', 'danger');
+	window.electronAPI.cancelSync();
+	showStatus('⚠️ Sincronização cancelada pelo usuário.', 'danger');
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -366,11 +347,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 	await atualizarDropdownBancos();
 
 	btnAtivar.addEventListener("click", async () => {
-		const bancoId = selectBanco.value;
-		if (!bancoId) return;
+		const databaseLocal = selectBanco.value;
+		if (!databaseLocal) return;
 
-		const bancos = await fetch("http://localhost:5001/api/database").then(res => res.json());
-		const bancoSelecionado = bancos.find(c => c.database === selectBanco.value);
+		const databaseId = await fetch(`http://localhost:5001/api/database/${databaseLocal}`).then(res => res.json());
+
+		if (!databaseId) console.log('Banco id não encontrado', databaseId)
+
+		const bancoSelecionado = databaseId.database;
 
 		if (!bancoSelecionado) {
 			ativacaoStatus.textContent = "❌ Banco selecionado não encontrado.";
@@ -378,25 +362,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 			return;
 		}
 
-		// ✅ Atualiza banco ativo local no Electron via preload
-		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado.database);
-		console.log("Banco selecionado:", bancoSelecionado);
+		const resElectron = await window.electronAPI.setBancoAtivo(bancoSelecionado);
 		if (!resElectron?.success) {
 			ativacaoStatus.textContent = `Erro ao ativar banco: ${resElectron.message}`;
 			ativacaoStatus.className = "text-danger fw-bold text-center mt-3";
 			return;
 		}
 
-		// // 🔁 Atualiza também no backend local (opcional, se necessário)
-		// await fetch("http://localhost:5001/api/database", {
-		// 	method: "POST",
-		// 	headers: { "Content-Type": "application/json" },
-		// 	body: JSON.stringify({ database: bancoSelecionado.database }),
-		// });
-
 		await atualizarTituloEmpresa();
 
-		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado.database}" ativado com sucesso.`;
+		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado}" ativado com sucesso.`;
 		ativacaoStatus.className = "text-success fw-bold text-center mt-3";
 	});
 

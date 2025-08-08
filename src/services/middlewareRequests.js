@@ -7,14 +7,12 @@ const { getDatabaseConfig } = require("../config/dbControl");
 const API_URL = "http://localhost:5000";
 const API_DB_URL = "http://localhost:5001/api/database";
 
-// 📦 Envia venda + itens para o middleware
 async function VendaMiddleware(connection, vendaId) {
   const venda = await getVendaById(connection, vendaId);
   const itens = await getItensVendaByPedido(connection, vendaId);
   return await sendVendaToMiddleware(venda, itens);
 }
 
-// ✅ Valida se o token salvo na API está funcional
 async function validateToken(token) {
   try {
     const response = await axios.get(`${API_URL}/api/validar-token`, {
@@ -30,39 +28,57 @@ async function validateToken(token) {
   }
 }
 
-// 🔐 Busca o token salvo na API local com base no banco ativo
 async function carregarTokenLocal() {
-  const { ativo } = await getDatabaseConfig();
-  if (!ativo) throw new Error("Banco ativo não definido");
+  try {
+    const { ativo } = await getDatabaseConfig();
 
-  const { data: bancos } = await axios.get(API_DB_URL);
-  const banco = bancos.find(b => b.database === ativo);
-  if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
+    if (!ativo) {
+      throw new Error("Banco ativo não definido");
+    }
 
-  // console.log("[carregarTokenLocal] bancos retornados:", bancos);
-  console.log("[carregarTokenLocal] banco ativo:", ativo);
-  console.log("[carregarTokenLocal] token encontrado:", banco?.token);
+    const res = await fetch(`http://localhost:5001/api/database/${ativo}`);
 
-  return banco.token;
+    if (!res.ok) {
+      throw new Error(`Erro ao buscar banco "${ativo}" na API: ${res.statusText}`);
+    }
+
+    const banco = await res.json();
+
+    if (!banco || banco.database !== ativo) {
+      throw new Error(`Banco ativo "${ativo}" não encontrado entre os bancos disponíveis.`);
+    }
+
+    const { database, token } = banco;
+    if (!database || !token) {
+      throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
+    }
+
+    console.log("[carregarTokenLocal] banco ativo:", database);
+    console.log("[carregarTokenLocal] token encontrado:", token);
+
+    return token;
+
+  } catch (err) {
+    console.error("Erro ao carregar o token:", err);
+    throw new Error("Erro ao carregar o token local: " + err.message);
+  }
 }
 
-// 🔄 Salva o token na API e valida ele
 async function setToken() {
   try {
     const token = await carregarTokenLocal();
 
-    console.log("[middlewareRequests] 🔑 Token carregado:", token);
+    console.log("Token carregado:", token);
 
-    console.log("📨 Enviando token para API...");
     const res = await axios.post(`${API_URL}/api/config/token`, { token });
 
-    console.log("[middlewareRequests] resposta da api:", res.data);
+    console.log("resposta da api:", res.data);
 
     if (res.status !== 200) {
       throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
     }
 
-    console.log("💾 Token salvo na API com sucesso!");
+    console.log("Token salvo na API com sucesso!");
     const accessToken = await validateToken(token);
 
     return accessToken;

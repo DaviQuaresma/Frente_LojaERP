@@ -1,7 +1,6 @@
 /** @format */
 
 const { Client } = require("pg");
-const axios = require("axios");
 const { getDatabaseConfig } = require("../config/dbControl");
 
 function getNomeBancoAtivo() {
@@ -15,36 +14,39 @@ function getNomeBancoAtivo() {
 }
 
 async function getNewClient() {
-	const bancoAtivoNome = getNomeBancoAtivo();
-	if (!bancoAtivoNome) {
+	const bancoAtivoLocal = getNomeBancoAtivo();
+
+	if (!bancoAtivoLocal) {
 		throw new Error("Nenhum banco ativo foi definido no arquivo de config local.");
 	}
 
-	let bancos;
 	try {
-		const response = await axios.get("http://localhost:5001/api/database");
-		bancos = response.data;
+		const res = await fetch(`http://localhost:5001/api/database/${bancoAtivoLocal}`);
+
+		if (!res.ok) {
+			throw new Error(`Erro ao buscar banco "${bancoAtivoLocal}" na API: ${res.statusText}`);
+		}
+
+		const banco = await res.json();
+
+		if (!banco || banco.database !== bancoAtivoLocal) {
+			throw new Error(`Banco ativo "${bancoAtivoLocal}" não foi encontrado na API ou os dados estão inconsistentes.`);
+		}
+
+		const { host, port, user, password, database } = banco;
+		if (!host || !port || !user || !password || !database) {
+			throw new Error(`Configuração incompleta do banco "${bancoAtivoLocal}" na API. Verifique se todos os campos estão preenchidos.`);
+		}
+
+		const databaseData = { host, port, user, password, database };
+
+		const client = new Client(databaseData);
+		await client.connect();
+		return client;
+
 	} catch (err) {
 		throw new Error("Erro ao buscar bancos cadastrados na API: " + err.message);
 	}
-
-	const banco = bancos.find(b => b.database === bancoAtivoNome);
-
-	if (!banco) {
-		throw new Error(`Banco ativo "${bancoAtivoNome}" não foi encontrado na API.`);
-	}
-
-	// Validação mínima dos campos essenciais
-	const { host, port, user, password, database } = banco;
-	if (!host || !port || !user || !password || !database) {
-		throw new Error(
-			`Configuração incompleta do banco "${banco.nome}" na API. Verifique se todos os campos estão preenchidos.`
-		);
-	}
-
-	const client = new Client({ host, port, user, password, database });
-	await client.connect();
-	return client;
 }
 
 module.exports = {

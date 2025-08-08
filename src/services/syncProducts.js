@@ -92,7 +92,7 @@ function cancelCurrentSync() {
 
 async function syncProducts() {
   console.log('[IPC] Iniciando syncProducts...');
-  cancelSync = false; // reset para nova sync
+  cancelSync = false;
 
   let connection, token;
   try {
