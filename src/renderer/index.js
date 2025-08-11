@@ -6,6 +6,7 @@ const resultado = document.getElementById("resultado");
 const erroEstoqueLista = document.getElementById("errosEstoque");
 const bancoSelect = document.getElementById("selectBancoSalvo");
 const btnAtivarBanco = document.getElementById("btnAtivarBanco");
+const btnDeletarBanco = document.getElementById("btnDeletarBanco");
 
 let paginaAtual = 1;
 const limitePorPagina = 10;
@@ -342,6 +343,7 @@ btnCancelar.addEventListener('click', () => {
 document.addEventListener("DOMContentLoaded", async () => {
 	const selectBanco = document.getElementById("selectBancoSalvo");
 	const btnAtivar = document.getElementById("btnAtivarBanco");
+	const btnDeletar = document.getElementById("btnDeletarBanco");
 	const ativacaoStatus = document.getElementById("ativacaoStatus");
 
 	await atualizarDropdownBancos();
@@ -373,6 +375,42 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado}" ativado com sucesso.`;
 		ativacaoStatus.className = "text-success fw-bold text-center mt-3";
+	});
+
+	btnDeletar.addEventListener("click", async () => {
+		const databaseLocal = selectBanco.value;
+		if (!databaseLocal) return;
+
+		try {
+			const res = await fetch(`http://localhost:5001/api/database/${databaseLocal}`);
+			const database = await res.json();
+
+			if (!database || !database.database) {
+				console.log('Banco id não existe ou não encontrado');
+				return;
+			}
+
+			const databaseName = database.database;
+
+			const databaseDelete = await fetch(`http://localhost:5001/api/database/${databaseName}`, {
+				method: 'DELETE'
+			});
+
+			if (!databaseDelete.ok) {
+				throw new Error(`Erro ao deletar o banco ${databaseName}.`);
+			}
+
+			console.log(`Banco ${databaseName} apagado com sucesso`);
+
+			await atualizarTituloEmpresa();
+			ativacaoStatus.textContent = `✅ Banco "${databaseName}" apagado com sucesso.`;
+			ativacaoStatus.className = "text-success fw-bold text-center mt-3";
+
+		} catch (err) {
+			console.error("Erro ao deletar banco:", err);
+			ativacaoStatus.textContent = `❌ Erro ao apagar o banco: ${err.message}`;
+			ativacaoStatus.className = "text-danger fw-bold text-center mt-3";
+		}
 	});
 
 });
