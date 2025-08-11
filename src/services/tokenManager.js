@@ -4,7 +4,7 @@ require("dotenv").config();
 const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 
 const API_URL = process.env.API_URL || "http://localhost:5000";
-const API_DB_URL = "http://localhost:5002/api/database";
+const API_DB_URL = "http://localhost:5001/api/database";
 
 // 🔐 Busca o token salvo na API local com base no banco ativo
 async function carregarTokenLocal() {
