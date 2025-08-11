@@ -59,7 +59,7 @@ async function salvarBancoEToken() {
 		return;
 	}
 
-	await fetch("http://localhost:5001/api/database", {
+	await fetch("http://localhost:5002/api/database", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ name, host, port, user, password, database, token }),
@@ -77,7 +77,7 @@ async function atualizarDropdownBancos() {
 	select.innerHTML = "";
 
 	try {
-		const bancos = await fetch("http://localhost:5001/api/database").then(res => res.json());
+		const bancos = await fetch("http://localhost:5002/api/database").then(res => res.json());
 
 		bancos.forEach(c => {
 			const option = document.createElement("option");
@@ -352,7 +352,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		const databaseLocal = selectBanco.value;
 		if (!databaseLocal) return;
 
-		const databaseId = await fetch(`http://localhost:5001/api/database/${databaseLocal}`).then(res => res.json());
+		const databaseId = await fetch(`http://localhost:5002/api/database/${databaseLocal}`).then(res => res.json());
 
 		if (!databaseId) console.log('Banco id não encontrado', databaseId)
 
@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		if (!databaseLocal) return;
 
 		try {
-			const res = await fetch(`http://localhost:5001/api/database/${databaseLocal}`);
+			const res = await fetch(`http://localhost:5002/api/database/${databaseLocal}`);
 			const database = await res.json();
 
 			if (!database || !database.database) {
@@ -392,7 +392,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 			const databaseName = database.database;
 
-			const databaseDelete = await fetch(`http://localhost:5001/api/database/${databaseName}`, {
+			const databaseDelete = await fetch(`http://localhost:5002/api/database/${databaseName}`, {
 				method: 'DELETE'
 			});
 

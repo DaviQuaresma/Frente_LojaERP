@@ -5,7 +5,7 @@ const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
 const { getDatabaseConfig } = require("../config/dbControl");
 
 const API_URL = "http://localhost:5000";
-const API_DB_URL = "http://localhost:5001/api/database";
+const API_DB_URL = "http://localhost:5002/api/database";
 
 async function VendaMiddleware(connection, vendaId) {
   const venda = await getVendaById(connection, vendaId);
@@ -36,7 +36,7 @@ async function carregarTokenLocal() {
       throw new Error("Banco ativo não definido");
     }
 
-    const res = await fetch(`http://localhost:5001/api/database/${ativo}`);
+    const res = await fetch(`http://localhost:5002/api/database/${ativo}`);
 
     if (!res.ok) {
       throw new Error(`Erro ao buscar banco "${ativo}" na API: ${res.statusText}`);

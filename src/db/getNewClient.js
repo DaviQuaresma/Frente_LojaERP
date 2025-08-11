@@ -21,7 +21,7 @@ async function getNewClient() {
 	}
 
 	try {
-		const res = await fetch(`http://localhost:5001/api/database/${bancoAtivoLocal}`);
+		const res = await fetch(`http://localhost:5002/api/database/${bancoAtivoLocal}`);
 
 		if (!res.ok) {
 			throw new Error(`Erro ao buscar banco "${bancoAtivoLocal}" na API: ${res.statusText}`);
