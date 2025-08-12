@@ -13,10 +13,9 @@ const limitePorPagina = 10;
 let produtosSemEstoque = [];
 
 // Atualiza nome da empresa no topo
-async function atualizarTituloEmpresa() {
+async function atualizarTituloEmpresa(databaseName) {
 	try {
-		const config = await window.electronAPI.getDatabaseConfig();
-		const nomeBanco = config?.ativo || "Painel ERP";
+		const nomeBanco = databaseName || "Painel ERP";
 		document.getElementById("tituloEmpresa").textContent = nomeBanco;
 	} catch (e) {
 		console.warn("⚠️ Erro ao atualizar nome do banco:", e);
@@ -68,7 +67,7 @@ async function salvarBancoEToken() {
 	statusDiv.textContent = "✅ Configuração salva com sucesso!";
 	statusDiv.className = "text-success fw-bold text-center mt-3";
 
-	await atualizarTituloEmpresa();
+	await atualizarTituloEmpresa(name);
 	await atualizarDropdownBancos();
 }
 
@@ -371,7 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 			return;
 		}
 
-		await atualizarTituloEmpresa();
+		await atualizarTituloEmpresa(bancoSelecionado);
 
 		ativacaoStatus.textContent = `✅ Banco "${bancoSelecionado}" ativado com sucesso.`;
 		ativacaoStatus.className = "text-success fw-bold text-center mt-3";
@@ -402,7 +401,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 			console.log(`Banco ${databaseName} apagado com sucesso`);
 
-			await atualizarTituloEmpresa();
+			await atualizarTituloEmpresa(databaseName);
 			ativacaoStatus.textContent = `✅ Banco "${databaseName}" apagado com sucesso.`;
 			ativacaoStatus.className = "text-success fw-bold text-center mt-3";
 

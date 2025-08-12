@@ -4,7 +4,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// Banco
 	salvarConfigBanco: (cfg) => ipcRenderer.invoke("salvar-config-banco", cfg),
 	getDatabaseConfig: () => ipcRenderer.invoke("getDatabaseConfig"),
-	setDatabaseConfig: (cfg) => ipcRenderer.invoke("setDatabaseConfig", cfg),
 	setBancoAtivo: (database) => ipcRenderer.invoke("set-banco-ativo", database),
 
 	// Info

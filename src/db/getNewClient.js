@@ -1,20 +1,17 @@
 /** @format */
 
+const { default: axios } = require("axios");
 const { Client } = require("pg");
-const { getDatabaseConfig } = require("../config/dbControl");
-
-function getNomeBancoAtivo() {
-	try {
-		const settings = getDatabaseConfig();
-		return settings.ativo || null;
-	} catch (err) {
-		console.error("Erro ao obter banco ativo local:", err.message);
-		return null;
-	}
-}
 
 async function getNewClient() {
-	const bancoAtivoLocal = getNomeBancoAtivo();
+
+	const response = await axios.get(`http://localhost:5001/api/database/active/data`);
+
+	if (!response || response.status !== 200) {
+		throw new Error("Falha na busca pelo banco ativo");
+	}
+
+	const bancoAtivoLocal = response.data.data.database.trim();
 
 	if (!bancoAtivoLocal) {
 		throw new Error("Nenhum banco ativo foi definido no arquivo de config local.");
@@ -50,6 +47,5 @@ async function getNewClient() {
 }
 
 module.exports = {
-	getNewClient,
-	getNomeBancoAtivo,
+	getNewClient
 };

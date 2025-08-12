@@ -2,7 +2,6 @@ require("dotenv").config();
 const axios = require("axios");
 const { getVendaById, getItensVendaByPedido } = require("../utils/dbCommands");
 const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
-const { getDatabaseConfig } = require("../config/dbControl");
 
 const API_URL = "http://localhost:5000";
 const API_DB_URL = "http://localhost:5001/api/database";
@@ -28,77 +27,31 @@ async function validateToken(token) {
   }
 }
 
-async function carregarTokenLocal() {
-  try {
-    const { ativo } = await getDatabaseConfig();
-
-    if (!ativo) {
-      throw new Error("Banco ativo não definido");
-    }
-
-    const res = await fetch(`http://localhost:5001/api/database/${ativo}`);
-
-    if (!res.ok) {
-      throw new Error(`Erro ao buscar banco "${ativo}" na API: ${res.statusText}`);
-    }
-
-    const banco = await res.json();
-
-    if (!banco || banco.database !== ativo) {
-      throw new Error(`Banco ativo "${ativo}" não encontrado entre os bancos disponíveis.`);
-    }
-
-    const { database, token } = banco;
-    if (!database || !token) {
-      throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
-    }
-
-    console.log("[carregarTokenLocal] banco ativo:", database);
-    console.log("[carregarTokenLocal] token encontrado:", token);
-
-    return token;
-
-  } catch (err) {
-    console.error("Erro ao carregar o token:", err);
-    throw new Error("Erro ao carregar o token local: " + err.message);
-  }
-}
-
 async function setToken() {
   try {
-    const data = await fetch(`${API_DB_URL}/active/data`).then(res => res.json());
-    const { token, id } = data
+    const data = await fetch(`${API_DB_URL}/active/data`).then(r => r.json());
+    const { token, id } = data.data;
 
-    console.log(data)
-
-    const res = await axios.post(`${API_URL}/api/config/token`, { token });
-
-    console.log(res)
-
-    if (res.status !== 200 || !res.data) {
-      throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
+    const saveResp = await axios.post(`${API_URL}/api/config/token`, { token });
+    if (saveResp.status !== 200 || !saveResp.data) {
+      throw new Error(`Falha ao salvar token na API. Status: ${saveResp.status}`);
     }
 
     const accessToken = await validateToken(token);
 
-    const updatetoken = await fetch(`${API_DB_URL}/${id}`, {
-      method: "PUT",
-      body: {
-        accessToken: accessToken
-      }
-    }).then(res => res.json());
-
-    if (updatetoken.status !== 200 || !updatetoken) {
-      throw new Error(`Falha ao atualizar access token na API. Status: ${res.status}`);
+    const updateResp = await axios.put(`${API_DB_URL}/${id}`, { accessToken });
+    if (updateResp.status !== 200 || !updateResp.data) {
+      throw new Error(`Falha ao atualizar access token na API. Status: ${updateResp.status}`);
     }
 
     return accessToken;
   } catch (err) {
-    const msg = err?.response?.data || err?.message || err.toString();
+    const msg = err?.response?.data ?? err?.message ?? String(err);
     console.error("❌ Erro no setToken:", msg);
     throw new Error(`setToken falhou: ${JSON.stringify(msg)}`);
   }
 }
+
 
 module.exports = {
   VendaMiddleware,

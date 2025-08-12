@@ -4,10 +4,8 @@ const path = require("path");
 const { app, BrowserWindow, ipcMain } = require("electron");
 const { Client } = require("pg");
 
-const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
 const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
-const { getNomeBancoAtivo } = require("../db/getNewClient");
 const { syncProducts, cancelCurrentSync } = require("../services/syncProducts");
 const { validateToken } = require("../services/middlewareRequests");
 
@@ -39,10 +37,6 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });
-
-// Banco ativo local
-ipcMain.handle("getDatabaseConfig", () => getDatabaseConfig());
-ipcMain.handle("setDatabaseConfig", (_, novaCfg) => setDatabaseConfig(novaCfg));
 
 // Testar conexão com banco informado
 ipcMain.handle("salvar-config-banco", async (_, config) => {
@@ -79,10 +73,6 @@ ipcMain.handle("get-empresa", async () => {
 		return { success: false, message: err.message };
 	}
 });
-
-// ipcMain.handle("get-nome-banco-ativo", () => {
-// 	return getNomeBancoAtivo();
-// });
 
 // Venda
 ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
@@ -191,12 +181,6 @@ ipcMain.handle("set-banco-ativo", async (_, database) => {
 		const res = await fetch(`http://localhost:5001/api/database/active/${database}`, {
 			method: "POST"
 		}).then(res => res.json());
-
-		console.log("set-banco-ativo: ",res.database)
-
-		setDatabaseConfig({ ativo: res.database });
-
-		console.log(`Banco ativo atualizado para: ${database}`);
 
 		return { success: true };
 
