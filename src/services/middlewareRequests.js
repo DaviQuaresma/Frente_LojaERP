@@ -66,24 +66,35 @@ async function carregarTokenLocal() {
 
 async function setToken() {
   try {
-    const token = await carregarTokenLocal();
+    const data = await fetch(`${API_DB_URL}/active/data`).then(res => res.json());
+    const { token, id } = data
 
-    console.log("Token carregado:", token);
+    console.log(data)
 
     const res = await axios.post(`${API_URL}/api/config/token`, { token });
 
-    console.log("resposta da api:", res.data);
+    console.log(res)
 
-    if (res.status !== 200) {
+    if (res.status !== 200 || !res.data) {
       throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
     }
 
-    console.log("Token salvo na API com sucesso!");
     const accessToken = await validateToken(token);
 
+    const updatetoken = await fetch(`${API_DB_URL}/${id}`, {
+      method: "PUT",
+      body: {
+        accessToken: accessToken
+      }
+    }).then(res => res.json());
+
+    if (updatetoken.status !== 200 || !updatetoken) {
+      throw new Error(`Falha ao atualizar access token na API. Status: ${res.status}`);
+    }
+
     return accessToken;
-  } catch (error) {
-    const msg = error?.response?.data || error.message;
+  } catch (err) {
+    const msg = err?.response?.data || err?.message || err.toString();
     console.error("❌ Erro no setToken:", msg);
     throw new Error(`setToken falhou: ${JSON.stringify(msg)}`);
   }

@@ -1,26 +1,9 @@
 const axios = require("axios");
 require("dotenv").config();
 
-const { getDatabaseConfig, setDatabaseConfig } = require("../config/dbControl");
-
 const API_URL = process.env.API_URL || "http://localhost:5000";
 const API_DB_URL = "http://localhost:5001/api/database";
 
-// 🔐 Busca o token salvo na API local com base no banco ativo
-async function carregarTokenLocal() {
-    const { ativo } = await getDatabaseConfig();
-    if (!ativo) throw new Error("Banco ativo não definido");
-
-    const { data: bancos } = await axios.get(API_DB_URL);
-    const banco = bancos.find(b => b.database === ativo);
-    if (!banco || !banco.token) throw new Error(`Token não encontrado para banco ativo: ${ativo}`);
-
-    console.log("🔑 Banco ativo:", ativo);
-
-    return banco.token;
-}
-
-// ✅ Valida se o token salvo na API está funcional
 async function validateToken(token) {
     const response = await axios.get(`${API_URL}/api/validar-token`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -29,41 +12,30 @@ async function validateToken(token) {
     return response.data.token;
 }
 
-// 🔄 Salva o token na API principal e valida
 async function setToken() {
     try {
-        const token = await carregarTokenLocal();
+        const data = await fetch(`${API_DB_URL}/active/data`).then(r => r.json());
+        const { token, id } = data.data;
 
-        // console.log("Enviando token para API...");
-        const res = await axios.post(`${API_URL}/api/config/token`, { token });
-
-        if (res.status !== 200 || !res.data) {
-            throw new Error(`Falha ao salvar token na API. Status: ${res.status}`);
+        const saveResp = await axios.post(`${API_URL}/api/config/token`, { token });
+        if (saveResp.status !== 200 || !saveResp.data) {
+            throw new Error(`Falha ao salvar token na API. Status: ${saveResp.status}`);
         }
 
         const accessToken = await validateToken(token);
 
-        const config = getDatabaseConfig();
-        const ativo = config?.ativo;
-
-        if (ativo) {
-            setDatabaseConfig({
-                salvos: {
-                    ...config.salvos,
-                    [ativo]: {
-                        ...config.salvos[ativo],
-                        token: accessToken,
-                    },
-                },
-            });
+        const updateResp = await axios.put(`${API_DB_URL}/${id}`, { accessToken });
+        if (updateResp.status !== 200 || !updateResp.data) {
+            throw new Error(`Falha ao atualizar access token na API. Status: ${updateResp.status}`);
         }
 
         return accessToken;
     } catch (err) {
-        const msg = err?.response?.data || err?.message || err.toString();
+        const msg = err?.response?.data ?? err?.message ?? String(err);
         console.error("❌ Erro no setToken:", msg);
         throw new Error(`setToken falhou: ${JSON.stringify(msg)}`);
     }
 }
+
 
 module.exports = { setToken };
