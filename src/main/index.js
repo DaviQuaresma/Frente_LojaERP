@@ -170,7 +170,7 @@ ipcMain.handle('sync-products', async () => {
 });
 
 ipcMain.on("cancel-sync", () => {
-  cancelCurrentSync();
+	cancelCurrentSync();
 });
 
 ipcMain.handle("testar-token-para-banco-ativo", async (_, token) => {
@@ -186,33 +186,20 @@ ipcMain.handle("testar-token-para-banco-ativo", async (_, token) => {
 	}
 });
 
-// Ativar banco (apenas define no JSON)
-ipcMain.handle("testar-e-conectar", async (_, config) => {
-	try {
-		const client = new Client(config);
-		await client.connect();
-		await client.end();
-
-		// Define como ativo no JSON
-		setDatabaseConfig({ ativo: config.nome });
-
-		console.log(`Banco "${config.nome}" testado e ativado.`);
-		return { success: true };
-	} catch (err) {
-		console.error("Erro ao conectar:", err.message);
-		return { success: false, message: err.message };
-	}
-});
-
 ipcMain.handle("set-banco-ativo", async (_, database) => {
 	try {
-		const configAtual = getDatabaseConfig();
-		if (!configAtual.salvos[database]) {
-			return { success: false, message: `Banco "${database}" não encontrado.` };
-		}
-		setDatabaseConfig({ ativo: database });
+		const res = await fetch(`http://localhost:5001/api/database/active/${database}`, {
+			method: "POST"
+		}).then(res => res.json());
+
+		console.log("set-banco-ativo: ",res.database)
+
+		setDatabaseConfig({ ativo: res.database });
+
 		console.log(`Banco ativo atualizado para: ${database}`);
+
 		return { success: true };
+
 	} catch (err) {
 		console.error("Erro ao definir banco ativo:", err.message);
 		return { success: false, message: err.message };
