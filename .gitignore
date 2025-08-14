@@ -8,7 +8,6 @@ package-lock.json
 
 # Ambiente
 .env
-.env.*
 
 # Diretórios de build/output
 dist/
