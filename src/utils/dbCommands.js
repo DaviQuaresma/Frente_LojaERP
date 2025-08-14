@@ -41,23 +41,42 @@ async function insertSale(
 }
 
 async function updateStock(connection, pro_codigo, quantidade) {
-	if (!pro_codigo || !quantidade || quantidade <= 0)
+	if (!pro_codigo || !quantidade || quantidade <= 0) {
 		throw new Error("Parâmetros inválidos para updateStock");
+	}
 
-	const result = await connection.query(
-		`UPDATE estoque_empresa_saldo
-		SET ees_ax_saldo = ees_ax_saldo - $1,
-			ees_up_saldo = ees_up_saldo - $1,
-			ees_up_disponivel = ees_up_disponivel - $1,
-			ees_up_custo_total = ees_up_custo_total - $1
-		WHERE pro_codigo = $2
-		RETURNING ees_ax_saldo;`,
-		[quantidade, pro_codigo]
-	);
+	const sql = `
+    WITH changed AS (
+      UPDATE estoque_empresa_saldo ems
+      SET
+        ees_ax_saldo       = ems.ees_ax_saldo - $1,
+        ees_up_saldo       = ems.ees_up_saldo - $1,
+        ees_up_disponivel  = ems.ees_up_disponivel - $1,
+        ees_up_custo_total = ems.ees_up_custo_total - $1
+      FROM estoque_locais_saldo els
+      WHERE ems.pro_codigo = els.pro_codigo
+        AND ems.pro_codigo = $2
+      RETURNING ems.pro_codigo, ems.ees_ax_saldo
+    )
+    UPDATE estoque_locais_saldo els
+    SET
+      els_up_saldo = els.els_up_saldo - $1,
+      els_su_saldo = els.els_su_saldo - $1
+    FROM changed c
+    WHERE els.pro_codigo = c.pro_codigo
+    RETURNING c.ees_ax_saldo;
+  `;
 
-	if (result.rowCount === 0)
-		throw new Error(`Produto ${pro_codigo} não encontrado.`);
+	const result = await connection.query(sql, [quantidade, pro_codigo]);
+
+	if (result.rowCount === 0) {
+		throw new Error(`Produto ${pro_codigo} não encontrado ou sem correspondência em estoque_local_saldo.`);
+	}
+
+	const novoSaldoAx = result.rows[0].ees_ax_saldo;
+	return { pro_codigo, ees_ax_saldo: novoSaldoAx };
 }
+
 
 async function createTablesIfNotExists(connection) {
 	await connection.query(`
@@ -221,49 +240,6 @@ async function dropAndCreateTrigger(connection) {
 	`);
 }
 
-async function createTriggerNFC(connection) {
-	await connection.query(`
-		DO $$
-		DECLARE max_nfe integer;
-		BEGIN
-			SELECT COALESCE(MAX(ven_numero_dfe::integer), 0) INTO max_nfe FROM vendas;
-			IF NOT EXISTS (
-				SELECT 1 FROM pg_class WHERE relname = 'seq_ven_numero_dfe') THEN
-				EXECUTE format('CREATE SEQUENCE seq_ven_numero_dfe START WITH %s;', max_nfe + 1);
-			ELSE
-				PERFORM setval('seq_ven_numero_dfe', max_nfe, true);
-			END IF;
-		END $$;
-	`);
-}
-
-async function defineDefaultNFC(connection) {
-	await connection.query(`
-		ALTER TABLE vendas ALTER COLUMN ven_numero_dfe
-		SET DEFAULT nextval('seq_ven_numero_dfe');
-	`);
-}
-
-async function createTriggerNf_number(connection) {
-	await connection.query(`
-		CREATE OR REPLACE FUNCTION sync_nf_numero_with_dfe()
-		RETURNS trigger AS $$
-		BEGIN
-			IF NEW.ven_numero_dfe IS NOT NULL THEN
-				NEW.nf_numero := NEW.ven_numero_dfe;
-			END IF;
-			RETURN NEW;
-		END;
-		$$ LANGUAGE plpgsql;
-
-		DROP TRIGGER IF EXISTS trg_sync_nf_numero ON vendas;
-
-		CREATE TRIGGER trg_sync_nf_numero
-		BEFORE INSERT OR UPDATE ON vendas
-		FOR EACH ROW EXECUTE FUNCTION sync_nf_numero_with_dfe();
-	`);
-}
-
 async function checkRequiredColumns(connection) {
 	const requiredColumns = ["ite_aliq_icms_efetiva", "ite_cmv_com_icms"];
 	const missingColumns = [];
@@ -285,42 +261,6 @@ async function checkRequiredColumns(connection) {
 			`❌ Campos ausentes no banco: ${missingColumns.join(", ")}`
 		);
 	}
-}
-
-async function getEmpresaData(connection, emp_codigo) {
-	const { rows } = await connection.query(
-		`
-		SELECT
-			emp_cnpj AS "CNPJ",
-			emp_nome AS "xNome",
-			emp_nomefantasia AS "xFant",
-			emp_inscricao AS "IE",
-			emp_uf AS "UF",
-			emp_cidade AS "xMun",
-			emp_cidade_ibge_rep AS "cMun",
-			emp_endereco AS "xLgr",
-			emp_numero AS "nro",
-			emp_bairro AS "xBairro",
-			emp_cep AS "CEP",
-			emp_telefone AS "fone",
-			emp_idcsc AS "cscId",
-			emp_csc AS "cscToken",
-			emp_rp_cnpj AS "respCNPJ",
-			emp_rp_contato AS "respNome",
-			emp_rp_email AS "respEmail",
-			emp_rp_fone AS "respFone"
-		FROM empresa
-		WHERE emp_codigo = $1
-		LIMIT 1
-		`,
-		[emp_codigo]
-	);
-
-	if (rows.length === 0) {
-		throw new Error(`Empresa com emp_codigo ${emp_codigo} não encontrada.`);
-	}
-
-	return rows[0];
 }
 
 async function getVendaById(connection, ven_cod_pedido) {
@@ -445,11 +385,7 @@ module.exports = {
 	createTablesIfNotExists,
 	insertIntoVendasInserted,
 	dropAndCreateTrigger,
-	createTriggerNFC,
-	defineDefaultNFC,
-	createTriggerNf_number,
 	checkRequiredColumns,
-	getEmpresaData,
 	getVendaById,
 	getItensVendaByPedido,
 	getProducts,

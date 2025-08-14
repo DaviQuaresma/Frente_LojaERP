@@ -8,9 +8,6 @@ const {
 	createTablesIfNotExists,
 	insertIntoVendasInserted,
 	dropAndCreateTrigger,
-	createTriggerNFC,
-	defineDefaultNFC,
-	createTriggerNf_number,
 	checkRequiredColumns,
 } = require("../utils/dbCommands");
 
@@ -27,7 +24,7 @@ function shuffleArray(array) {
 }
 
 async function createSale(valorAlvo) {
-	await atualizarCacheProdutos(); // garantir dados atuais
+	await atualizarCacheProdutos();
 
 	console.log("🔁 Iniciando createSale com valor:", valorAlvo);
 	const connection = await getNewClient();
@@ -37,9 +34,6 @@ async function createSale(valorAlvo) {
 		await connection.query("BEGIN /* Início da transação de venda automática */");
 
 		await createTablesIfNotExists(connection);
-		await createTriggerNFC(connection);
-		await defineDefaultNFC(connection);
-		await createTriggerNf_number(connection);
 		await dropAndCreateTrigger(connection);
 
 		await connection.query(`
