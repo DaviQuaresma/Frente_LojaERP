@@ -23,10 +23,9 @@ function shuffleArray(array) {
 	return array.sort(() => Math.random() - 0.5);
 }
 
-async function createSale(valorAlvo) {
+async function createSale(valorAlvo, codContato) {
 	await atualizarCacheProdutos();
 
-	console.log("🔁 Iniciando createSale com valor:", valorAlvo);
 	const connection = await getNewClient();
 
 	try {
@@ -47,10 +46,7 @@ async function createSale(valorAlvo) {
 			END $$;
 		`);
 
-		console.log(`🌟 Valor alvo para venda: R$ ${valorAlvo.toFixed(2)}`);
-
 		let produtos = await getAvailableProducts(connection);
-		console.log("🔍 Produtos buscados no banco local:", produtos.length);
 
 		// Filtrar apenas os produtos que existem no cache do eGestor
 		const produtosSincronizados = [];
@@ -59,8 +55,6 @@ async function createSale(valorAlvo) {
 			const codEgestor = await getCodigoEgestorPorCodigoProprio(codigoProprio);
 			if (codEgestor) produtosSincronizados.push(p);
 		}
-
-		console.log("🔒 Produtos sincronizados disponíveis para venda:", produtosSincronizados.length);
 
 		// Agora sim aplica o filtro de estoque e embaralha
 		produtos = produtosSincronizados.filter((p) => p.estoque && p.estoque >= 10);
@@ -152,7 +146,7 @@ async function createSale(valorAlvo) {
 			console.log("🛒 Enviando venda para API com vendaId:", vendaId);
 			if (!vendaId) throw new Error("Não foi recebido venda ID para operação fiscal");
 
-			await VendaMiddleware(connection, vendaId);
+			await VendaMiddleware(connection, vendaId, codContato);
 
 			await connection.query("COMMIT");
 			console.log(`✅ Venda ${vendaId} finalizada com ${itensInseridos} itens.`);

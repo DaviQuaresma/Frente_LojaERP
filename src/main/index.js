@@ -8,7 +8,6 @@ const { createSale } = require("../services/salesService");
 const { getNewClient } = require("../db/getNewClient");
 const { syncProducts, cancelCurrentSync } = require("../services/syncProducts");
 const { validateToken } = require("../services/middlewareRequests");
-
 const iconPath = path.join(__dirname, "../../logo.png");
 
 function createWindow() {
@@ -75,11 +74,9 @@ ipcMain.handle("get-empresa", async () => {
 });
 
 // Venda
-ipcMain.handle("criar-venda", async (_event, valorAlvo) => {
+ipcMain.handle("criar-venda", async (_event, valorAlvo, codContato) => {
 	try {
-		console.log("Valor recebido no handler:", valorAlvo);
-		await createSale(parseFloat(valorAlvo));
-		console.log("Finalizou createSale");
+		await createSale(parseFloat(valorAlvo), codContato);
 		return { success: true, message: "Venda criada com sucesso!" };
 	} catch (err) {
 		console.error("Erro ao criar venda:", err);
@@ -124,7 +121,7 @@ ipcMain.handle(
 				})),
 			};
 		} catch (err) {
-			console.error("Erro ao buscar histórico:", err);
+			console.error("Erro ao buscar histórico:", err.data || err.message);
 			return { total: 0, vendas: [] };
 		}
 	}

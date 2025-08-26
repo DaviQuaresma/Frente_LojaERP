@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	cancelSync: () => ipcRenderer.send("cancel-sync"),
 
 	// Vendas
-	criarVenda: (valor) => ipcRenderer.invoke("criar-venda", valor),
+	criarVenda: (valor, codContato) => ipcRenderer.invoke("criar-venda", valor, codContato),
 	listarVendas: (filtros) => ipcRenderer.invoke("listar-vendas", filtros),
 
 	// Token

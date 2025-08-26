@@ -7,6 +7,7 @@ const erroEstoqueLista = document.getElementById("errosEstoque");
 const bancoSelect = document.getElementById("selectBancoSalvo");
 const btnAtivarBanco = document.getElementById("btnAtivarBanco");
 const btnDeletarBanco = document.getElementById("btnDeletarBanco");
+const codigoContato = document.getElementById("codigoContato");
 
 let paginaAtual = 1;
 const limitePorPagina = 10;
@@ -105,6 +106,8 @@ async function buscarProduto(pro_codigo) {
 // Processar vendas
 botao.addEventListener("click", async () => {
 	const valoresStr = inputValor.value;
+	const codigoContatoStr = codigoContato.value;
+
 	resultado.classList.remove("text-danger", "text-success", "text-warning");
 	resultado.innerHTML = "";
 	erroEstoqueLista.innerHTML = "";
@@ -132,7 +135,7 @@ botao.addEventListener("click", async () => {
 
 	for (const valor of valores) {
 		try {
-			const resposta = await window.electronAPI.criarVenda(valor);
+			const resposta = await window.electronAPI.criarVenda(valor, codigoContatoStr);
 
 			if (resposta?.success === true) {
 				resultado.innerHTML += `<li class="text-success">✅ <strong>Venda de R$ ${valor.toFixed(
@@ -320,12 +323,12 @@ btnSync.addEventListener('click', async () => {
 		const result = await window.electronAPI.syncProducts();
 
 		if (result.ok) {
-			showStatus('✅ Produtos sincronizados com sucesso!', 'success');
+			showStatus('Produtos sincronizados com sucesso!', 'success');
 		} else {
-			showStatus(`❌ Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
+			showStatus(`Erro: ${result.error || 'Falha desconhecida'}`, 'danger');
 		}
 	} catch (err) {
-		showStatus(`❌ Erro inesperado: ${err.message}`, 'danger');
+		showStatus(`Erro inesperado: ${err.message}`, 'danger');
 	} finally {
 		btnSync.disabled = false;
 		btnCancelar.disabled = true;

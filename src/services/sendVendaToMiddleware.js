@@ -2,7 +2,7 @@ const { getCodigoEgestorPorCodigoProprio } = require("../cache/cacheProdutos.js"
 const { setToken } = require("./tokenManager.js");
 const axios = require("axios");
 
-async function sendVendaToMiddleware(venda, itens) {
+async function sendVendaToMiddleware(venda, itens, codContato) {
     const token = await setToken();
 
     if (!token) {
@@ -44,7 +44,7 @@ async function sendVendaToMiddleware(venda, itens) {
     const totalVenda = produtosPayload.reduce((acc, item) => acc + (item.quant * item.preco), 0);
 
     const payload = {
-        codContato: 1,
+        codContato: parseInt(codContato),
         codVendedor: venda.cod_vendedor || 1,
         dtVenda: dataFormatada,
         dtEntrega: dataFormatada,

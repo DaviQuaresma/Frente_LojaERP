@@ -6,10 +6,10 @@ const { sendVendaToMiddleware } = require("./sendVendaToMiddleware");
 const API_URL = "http://localhost:5000";
 const API_DB_URL = "http://localhost:5001/api/database";
 
-async function VendaMiddleware(connection, vendaId) {
+async function VendaMiddleware(connection, vendaId, codContato) {
   const venda = await getVendaById(connection, vendaId);
   const itens = await getItensVendaByPedido(connection, vendaId);
-  return await sendVendaToMiddleware(venda, itens);
+  return await sendVendaToMiddleware(venda, itens, codContato);
 }
 
 async function validateToken(token) {
@@ -51,7 +51,6 @@ async function setToken() {
     throw new Error(`setToken falhou: ${JSON.stringify(msg)}`);
   }
 }
-
 
 module.exports = {
   VendaMiddleware,
